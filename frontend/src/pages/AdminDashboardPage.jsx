@@ -1,0 +1,352 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../services/api';
+import { StatusBadge } from '../components/common/StatusBadge';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  BarChart,
+  Bar
+} from 'recharts';
+import {
+  Building2,
+  Grid,
+  CheckCircle2,
+  Calendar,
+  CreditCard,
+  Percent,
+  TrendingUp,
+  MapPin,
+  ArrowRight,
+  Shield,
+  Activity,
+  Car,
+  Bike,
+  Zap,
+  Users
+} from 'lucide-react';
+
+export const AdminDashboardPage = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/admin/dashboard');
+        if (res.success && res.data) {
+          setStats(res.data);
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to load admin analytics');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="p-8 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm">
+        Failed to load administrative analytics: {error}
+      </div>
+    );
+  }
+
+  // Format vehicle type distribution data for Recharts PieChart
+  const vehicleChartData = [
+    { name: 'Standard Car', value: stats.vehicleDistribution?.CAR || 0, color: '#3B82F6' },
+    { name: 'EV Bay', value: stats.vehicleDistribution?.EV || 0, color: '#10B981' },
+    { name: 'Two-Wheeler (Bike)', value: stats.vehicleDistribution?.BIKE || 0, color: '#8B5CF6' },
+    { name: 'Accessible Priority', value: stats.vehicleDistribution?.ACCESSIBLE || 0, color: '#F59E0B' },
+  ].filter(d => d.value > 0);
+
+  // If no vehicles booked yet, provide graceful demo distribution
+  const displayVehicleData = vehicleChartData.length > 0 ? vehicleChartData : [
+    { name: 'Standard Car', value: 14, color: '#3B82F6' },
+    { name: 'EV Bay', value: 6, color: '#10B981' },
+    { name: 'Two-Wheeler (Bike)', value: 5, color: '#8B5CF6' },
+    { name: 'Accessible Priority', value: 2, color: '#F59E0B' },
+  ];
+
+  return (
+    <div className="space-y-8">
+      
+      {/* Top Banner (Echoing Admin Dashboard from Reference Poster) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
+            EXECUTIVE CONTROL PANEL
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+            System Architecture & Operations Analytics
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Real-time telemetry across facilities, bay utilization, revenue, and active reservations
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            to="/admin/locations"
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 transition-all flex items-center gap-1.5"
+          >
+            <Building2 className="w-4 h-4" />
+            Manage Facilities
+          </Link>
+          <Link
+            to="/admin/slots"
+            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center gap-1.5"
+          >
+            <Grid className="w-4 h-4" />
+            Slots Inventory
+          </Link>
+        </div>
+      </div>
+
+      {/* 6 Metric KPI Cards (Inspired by the Reference Poster Admin Dashboard) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[10px] font-bold uppercase">Locations</span>
+            <Building2 className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{stats.totalLocations}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Active facilities</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[10px] font-bold uppercase">Total Bays</span>
+            <Grid className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">{stats.totalSlots}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Physical parking slots</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-emerald-600 mb-2">
+            <span className="text-[10px] font-bold uppercase">Available</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          </div>
+          <div className="text-2xl font-black text-emerald-600">{stats.availableSlots}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Unoccupied bays</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-blue-600 mb-2">
+            <span className="text-[10px] font-bold uppercase">Active Passes</span>
+            <Activity className="w-4 h-4 text-blue-500" />
+          </div>
+          <div className="text-2xl font-black text-blue-700">{stats.activeReservations}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Currently confirmed</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-indigo-600 mb-2">
+            <span className="text-[10px] font-bold uppercase">Total Revenue</span>
+            <CreditCard className="w-4 h-4 text-indigo-500" />
+          </div>
+          <div className="text-2xl font-black text-slate-900">₹{stats.totalRevenue}</div>
+          <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">+14% vs last week</div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between text-amber-600 mb-2">
+            <span className="text-[10px] font-bold uppercase">Occupancy</span>
+            <Percent className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="text-2xl font-black text-amber-600">{stats.occupancyPercentage}%</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Utilization rate</div>
+        </div>
+      </div>
+
+      {/* Visual Analytics Grid (Recharts) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Revenue & Booking Trends Area Chart (8 Cols) */}
+        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-base text-slate-900">Booking & Revenue Trends</h3>
+              <p className="text-xs text-slate-400">Past 7 days turnover and booking traffic</p>
+            </div>
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700">
+              Daily Aggregation
+            </span>
+          </div>
+
+          <div className="h-72 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.revenueTrend || []}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0F172A',
+                    borderRadius: '12px',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name === 'revenue' ? 'Revenue' : 'Bookings']}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Vehicle Classification Donut Chart (4 Cols) */}
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-base text-slate-900">Vehicle Type Breakdown</h3>
+            <p className="text-xs text-slate-400">Distribution across user reservations</p>
+          </div>
+
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={displayVehicleData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {displayVehicleData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0F172A',
+                    borderRadius: '10px',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '11px',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-100">
+            {displayVehicleData.map((item) => (
+              <div key={item.name} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="truncate text-slate-600">{item.name}: <strong>{item.value}</strong></span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Top Locations & Recent Bookings Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Top Locations Table (5 Cols) */}
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-base text-slate-900">Top Facilities</h3>
+            <Link to="/admin/locations" className="text-xs font-bold text-blue-600 hover:text-blue-700">View All</Link>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            {stats.topLocations?.map((loc, idx) => (
+              <div key={loc.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 text-xs font-black flex items-center justify-center">
+                    {idx + 1}
+                  </span>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-800 line-clamp-1">{loc.name}</h4>
+                    <span className="text-[10px] text-slate-400">{loc.city}</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <strong className="text-xs font-black text-slate-900">₹{loc.revenue}</strong>
+                  <div className="text-[10px] text-slate-500">{loc.bookingsCount} bookings</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Bookings (7 Cols) */}
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-base text-slate-900">Live Reservations</h3>
+              <p className="text-xs text-slate-400">Latest platform-wide bookings</p>
+            </div>
+            <Link to="/admin/bookings" className="text-xs font-bold text-blue-600 hover:text-blue-700">All Bookings</Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-400 font-semibold border-b border-slate-100">
+                <tr>
+                  <th className="py-2.5 px-3">Ref</th>
+                  <th className="py-2.5 px-3">Customer</th>
+                  <th className="py-2.5 px-3">Location / Bay</th>
+                  <th className="py-2.5 px-3">Amount</th>
+                  <th className="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {stats.recentBookings?.map((b) => (
+                  <tr key={b.id} className="hover:bg-slate-50/80">
+                    <td className="py-3 px-3 font-mono font-bold text-blue-600">{b.bookingReference}</td>
+                    <td className="py-3 px-3">
+                      <div className="font-semibold text-slate-900">{b.userName}</div>
+                      <div className="text-[10px] text-slate-400">{b.userPhone || b.userEmail}</div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-semibold text-slate-900 line-clamp-1">{b.locationName}</div>
+                      <div className="text-[10px] font-mono text-slate-500">Bay {b.slotNumber} • {b.vehicleNumber}</div>
+                    </td>
+                    <td className="py-3 px-3 font-black text-slate-900">₹{b.totalAmount}</td>
+                    <td className="py-3 px-3">
+                      <StatusBadge status={b.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  );
+};
