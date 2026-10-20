@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { DemoSwitcherModal } from './DemoSwitcherModal';
 import {
   Car,
   Search,
@@ -15,14 +14,12 @@ import {
   Menu,
   X,
   ChevronDown,
-  Sparkles,
   QrCode
 } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, isAuthenticated, isAdmin, isManager, logout } = useAuth();
   const { unreadCount, setIsOpen: openNotifications } = useNotifications();
-  const [showDemoModal, setShowDemoModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -100,15 +97,6 @@ export const Navbar = () => {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2">
-            {/* Quick Demo Switcher button */}
-            <button
-              onClick={() => setShowDemoModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-colors shadow-2xs"
-              title="Switch demo account roles instantly"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Demo</span> Roles
-            </button>
 
             {/* Notification Bell */}
             {isAuthenticated && (
@@ -260,9 +248,6 @@ export const Navbar = () => {
           </div>
         )}
       </header>
-
-      {/* Demo Switcher Modal Component */}
-      <DemoSwitcherModal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} />
     </>
   );
 };
