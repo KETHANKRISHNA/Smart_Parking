@@ -8,13 +8,9 @@ import {
   CreditCard,
   QrCode,
   ShieldCheck,
-  CheckCircle,
   Clock,
-  Fuel,
   ArrowRight,
-  TrendingUp,
   Sparkles,
-  Zap,
   Building2,
   Plane,
   Train,
@@ -27,6 +23,7 @@ export const LandingPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [featuredLocations, setFeaturedLocations] = useState([]);
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -35,7 +32,8 @@ export const LandingPage = () => {
       try {
         const res = await api.get('/parking');
         if (res.success && res.data) {
-          setFeaturedLocations(res.data.slice(0, 6));
+          setFeaturedLocations([...res.data].sort((a, b) => b.availableSlots - a.availableSlots).slice(0, 6));
+          setCities([...new Set(res.data.map((l) => l.city))].sort());
         }
       } catch (err) {
         console.warn('Could not load featured locations:', err.message);
@@ -83,9 +81,9 @@ export const LandingPage = () => {
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-300 text-xs font-semibold mb-6 shadow-xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-300 text-xs font-semibold mb-6 shadow-sm">
             <Sparkles className="w-4 h-4 text-blue-400" />
-            <span>Next-Generation Smart Urban Mobility</span>
+            <span>Reserve a bay before you arrive</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight sm:leading-none">
@@ -107,12 +105,14 @@ export const LandingPage = () => {
             >
               <div className="flex-1 flex items-center gap-2.5 px-3 py-2 w-full">
                 <Search className="w-5 h-5 text-blue-600 shrink-0" />
+                <label htmlFor="hero-query" className="sr-only">Search parking</label>
                 <input
-                  type="text"
+                  id="hero-query"
+                  type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search hospital, mall, railway, airport..."
-                  className="w-full text-sm font-medium focus:outline-hidden placeholder:text-slate-400"
+                  className="w-full text-sm font-medium focus:outline-none placeholder:text-slate-500"
                 />
               </div>
 
@@ -120,15 +120,15 @@ export const LandingPage = () => {
 
               <div className="w-full sm:w-44 flex items-center gap-2 px-3 py-2">
                 <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <label htmlFor="hero-city" className="sr-only">City</label>
                 <select
+                  id="hero-city"
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full text-xs font-semibold text-slate-700 bg-transparent focus:outline-hidden cursor-pointer"
+                  className="w-full text-xs font-semibold text-slate-700 bg-transparent focus:outline-none cursor-pointer"
                 >
-                  <option value="">All Cities</option>
-                  <option value="Bangalore">Bangalore</option>
-                  <option value="Mumbai">Mumbai</option>
-                  <option value="Hyderabad">Hyderabad</option>
+                  <option value="">All cities</option>
+                  {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -141,12 +141,14 @@ export const LandingPage = () => {
               </button>
             </form>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 mt-4">
-              <span>Popular searches:</span>
-              <button onClick={() => navigate('/search?category=HOSPITAL')} className="hover:text-blue-400 underline underline-offset-4">Apollo Hospital</button>
-              <button onClick={() => navigate('/search?category=MALL')} className="hover:text-blue-400 underline underline-offset-4">Phoenix Marketcity</button>
-              <button onClick={() => navigate('/search?category=AIRPORT')} className="hover:text-blue-400 underline underline-offset-4">Terminal 1 Airport</button>
-            </div>
+            {featuredLocations.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-slate-300 mt-4">
+                <span>Popular right now:</span>
+                {featuredLocations.slice(0, 3).map((loc) => (
+                  <Link key={loc.id} to={`/parking/${loc.id}`} className="hover:text-blue-300 underline underline-offset-4">{loc.name}</Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -169,10 +171,10 @@ export const LandingPage = () => {
           {categories.map((cat) => {
             const Icon = cat.icon;
             return (
-              <div
+              <Link
                 key={cat.code}
-                onClick={() => navigate(`/search?category=${cat.code}`)}
-                className="group cursor-pointer p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all text-center flex flex-col items-center justify-between"
+                to={`/search?category=${cat.code}`}
+                className="group p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all text-center flex flex-col items-center justify-between"
               >
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 border ${cat.color} group-hover:scale-110 transition-transform`}>
                   <Icon className="w-6 h-6" />
@@ -188,7 +190,7 @@ export const LandingPage = () => {
                 <span className="mt-3 text-[11px] font-semibold text-blue-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   View Bays <ArrowRight className="w-3 h-3" />
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -227,24 +229,28 @@ export const LandingPage = () => {
             {featuredLocations.map((loc) => (
               <div
                 key={loc.id}
-                className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-blue-400 transition-all flex flex-col overflow-hidden group"
+                className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all flex flex-col overflow-hidden group"
               >
                 {/* Image */}
-                <div className="relative h-44 overflow-hidden">
-                  <img
-                    src={loc.imageUrl}
-                    alt={loc.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-200 to-slate-300">
+                  {loc.imageUrl && (
+                    <img
+                      src={loc.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
-                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[11px] font-bold bg-white/95 text-slate-800 shadow-sm backdrop-blur-xs">
-                    {loc.category.replace('_', ' ')}
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[11px] font-bold bg-white/95 text-slate-800 shadow-sm backdrop-blur-sm">
+                    {loc.category.replaceAll('_', ' ')}
                   </span>
                   <span className="absolute bottom-3 left-3 text-white font-bold text-sm drop-shadow-md">
                     {loc.city}
                   </span>
                   <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" aria-hidden="true" />
                     {loc.availableSlots} Available
                   </div>
                 </div>

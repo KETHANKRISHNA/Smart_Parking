@@ -1,42 +1,52 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { MainLayout } from '../layouts/MainLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 
-// Public & Driver Pages
-import { LandingPage } from '../pages/LandingPage';
-import { LoginPage } from '../pages/LoginPage';
-import { RegisterPage } from '../pages/RegisterPage';
-import { SearchParkingPage } from '../pages/SearchParkingPage';
-import { ParkingDetailsPage } from '../pages/ParkingDetailsPage';
-import { BookingConfirmationPage } from '../pages/BookingConfirmationPage';
-import { PaymentPage } from '../pages/PaymentPage';
-import { BookingTicketPage } from '../pages/BookingTicketPage';
-import { MyBookingsPage } from '../pages/MyBookingsPage';
-import { UserDashboardPage } from '../pages/UserDashboardPage';
-import { ProfilePage } from '../pages/ProfilePage';
+// Every page is loaded on demand, so heavy libraries (charts, maps, QR scanner) only download
+// when the visitor actually opens a page that needs them.
+const page = (loader, name) => lazy(() => loader().then((m) => ({ default: m[name] })));
 
-// Admin Pages
-import { AdminDashboardPage } from '../pages/AdminDashboardPage';
-import { AdminLocationsPage } from '../pages/AdminLocationsPage';
-import { AdminSlotsPage } from '../pages/AdminSlotsPage';
-import { AdminBookingsPage } from '../pages/AdminBookingsPage';
-import { AdminUsersPage } from '../pages/AdminUsersPage';
-import { AdminAuditLogsPage } from '../pages/AdminAuditLogsPage';
+const LandingPage = page(() => import('../pages/LandingPage'), 'LandingPage');
+const LoginPage = page(() => import('../pages/LoginPage'), 'LoginPage');
+const RegisterPage = page(() => import('../pages/RegisterPage'), 'RegisterPage');
+const SearchParkingPage = page(() => import('../pages/SearchParkingPage'), 'SearchParkingPage');
+const ParkingDetailsPage = page(() => import('../pages/ParkingDetailsPage'), 'ParkingDetailsPage');
+const BookingConfirmationPage = page(() => import('../pages/BookingConfirmationPage'), 'BookingConfirmationPage');
+const PaymentPage = page(() => import('../pages/PaymentPage'), 'PaymentPage');
+const BookingTicketPage = page(() => import('../pages/BookingTicketPage'), 'BookingTicketPage');
+const MyBookingsPage = page(() => import('../pages/MyBookingsPage'), 'MyBookingsPage');
+const UserDashboardPage = page(() => import('../pages/UserDashboardPage'), 'UserDashboardPage');
+const ProfilePage = page(() => import('../pages/ProfilePage'), 'ProfilePage');
 
-// Parking Manager Pages
-import { ManagerDashboardPage } from '../pages/ManagerDashboardPage';
-import { ManagerScannerPage } from '../pages/ManagerScannerPage';
+const AdminDashboardPage = page(() => import('../pages/AdminDashboardPage'), 'AdminDashboardPage');
+const AdminLocationsPage = page(() => import('../pages/AdminLocationsPage'), 'AdminLocationsPage');
+const AdminSlotsPage = page(() => import('../pages/AdminSlotsPage'), 'AdminSlotsPage');
+const AdminBookingsPage = page(() => import('../pages/AdminBookingsPage'), 'AdminBookingsPage');
+const AdminUsersPage = page(() => import('../pages/AdminUsersPage'), 'AdminUsersPage');
+const AdminAuditLogsPage = page(() => import('../pages/AdminAuditLogsPage'), 'AdminAuditLogsPage');
 
-// System Pages
-import { AccessDeniedPage } from '../pages/AccessDeniedPage';
-import { NotFoundPage } from '../pages/NotFoundPage';
+const ManagerDashboardPage = page(() => import('../pages/ManagerDashboardPage'), 'ManagerDashboardPage');
+const ManagerSlotsPage = page(() => import('../pages/ManagerSlotsPage'), 'ManagerSlotsPage');
+const ManagerScannerPage = page(() => import('../pages/ManagerScannerPage'), 'ManagerScannerPage');
 
-export const AppRoutes = () => {
-  return (
+const AccessDeniedPage = page(() => import('../pages/AccessDeniedPage'), 'AccessDeniedPage');
+const NotFoundPage = page(() => import('../pages/NotFoundPage'), 'NotFoundPage');
+
+const ADMIN = ['ROLE_ADMIN'];
+const STAFF = ['ROLE_PARKING_MANAGER', 'ROLE_ADMIN'];
+
+const PageLoader = () => (
+  <div className="min-h-[50vh] flex items-center justify-center" role="status" aria-label="Loading page">
+    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+  </div>
+);
+
+export const AppRoutes = () => (
+  <Suspense fallback={<PageLoader />}>
     <Routes>
-      {/* Public Pages with Main Header & Footer */}
+      {/* Public pages with the main header and footer */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -44,141 +54,40 @@ export const AppRoutes = () => {
         <Route path="/search" element={<SearchParkingPage />} />
         <Route path="/parking/:id" element={<ParkingDetailsPage />} />
 
-        {/* Protected Booking Workflow Pages */}
-        <Route
-          path="/booking/confirm"
-          element={
-            <ProtectedRoute>
-              <BookingConfirmationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payment"
-          element={
-            <ProtectedRoute>
-              <PaymentPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/booking/ticket/:id"
-          element={
-            <ProtectedRoute>
-              <BookingTicketPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/bookings"
-          element={
-            <ProtectedRoute>
-              <MyBookingsPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Booking workflow (signed-in customers) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/booking/confirm" element={<BookingConfirmationPage />} />
+          <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/booking/ticket/:id" element={<BookingTicketPage />} />
+          <Route path="/bookings" element={<MyBookingsPage />} />
+        </Route>
       </Route>
 
-      {/* Dashboard Sub-System with Persistent Sidebar Layout */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        {/* User Dashboard */}
-        <Route path="/dashboard" element={<UserDashboardPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+      {/* Dashboards with the persistent sidebar */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<UserDashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
-        {/* Admin Console (ROLE_ADMIN only) */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/locations"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminLocationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/slots"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminSlotsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/bookings"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminBookingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminUsersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/audit-logs"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_ADMIN']}>
-              <AdminAuditLogsPage />
-            </ProtectedRoute>
-          }
-        />
+          <Route element={<ProtectedRoute allowedRoles={ADMIN} />}>
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/locations" element={<AdminLocationsPage />} />
+            <Route path="/admin/slots" element={<AdminSlotsPage />} />
+            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
+          </Route>
 
-        {/* Parking Manager Portal (ROLE_PARKING_MANAGER or ROLE_ADMIN) */}
-        <Route
-          path="/manager/dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_PARKING_MANAGER', 'ROLE_ADMIN']}>
-              <ManagerDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager/slots"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_PARKING_MANAGER', 'ROLE_ADMIN']}>
-              <AdminSlotsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager/scanner"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_PARKING_MANAGER', 'ROLE_ADMIN']}>
-              <ManagerScannerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager/today"
-          element={
-            <ProtectedRoute allowedRoles={['ROLE_PARKING_MANAGER', 'ROLE_ADMIN']}>
-              <ManagerDashboardPage />
-            </ProtectedRoute>
-          }
-        />
+          <Route element={<ProtectedRoute allowedRoles={STAFF} />}>
+            <Route path="/manager/dashboard" element={<ManagerDashboardPage />} />
+            <Route path="/manager/slots" element={<ManagerSlotsPage />} />
+            <Route path="/manager/scanner" element={<ManagerScannerPage />} />
+          </Route>
+        </Route>
       </Route>
 
-      {/* Fallbacks */}
       <Route path="/access-denied" element={<AccessDeniedPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
-  );
-};
+  </Suspense>
+);

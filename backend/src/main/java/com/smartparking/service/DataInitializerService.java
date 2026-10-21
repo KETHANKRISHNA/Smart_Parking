@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 /** Seeds demo accounts and facilities. Only runs when app.seed.enabled=true (the dev profile). */
 @Service
+@Order(1)
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
 public class DataInitializerService implements CommandLineRunner {
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNotifications } from '../../context/NotificationContext';
-import { Bell, CheckCheck, X, Clock, Calendar, AlertCircle } from 'lucide-react';
+import { Bell, CheckCheck, X, Clock } from 'lucide-react';
 
 export const NotificationDrawer = () => {
   const { notifications, unreadCount, isOpen, setIsOpen, markAsRead, markAllAsRead } = useNotifications();
@@ -10,7 +10,7 @@ export const NotificationDrawer = () => {
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
         onClick={() => setIsOpen(false)}
       />
 
@@ -64,7 +64,7 @@ export const NotificationDrawer = () => {
                   key={n.id}
                   onClick={() => !n.read && markAsRead(n.id)}
                   className={`p-3.5 rounded-xl transition-all cursor-pointer ${
-                    !n.read ? 'bg-blue-50/40 border border-blue-100 shadow-xs' : 'hover:bg-slate-50'
+                    !n.read ? 'bg-blue-50/40 border border-blue-100 shadow-sm' : 'hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">

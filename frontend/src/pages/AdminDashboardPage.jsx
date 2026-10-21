@@ -12,27 +12,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
-  BarChart,
-  Bar
 } from 'recharts';
-import {
-  Building2,
-  Grid,
-  CheckCircle2,
-  Calendar,
-  CreditCard,
-  Percent,
-  TrendingUp,
-  MapPin,
-  ArrowRight,
-  Shield,
-  Activity,
-  Car,
-  Bike,
-  Zap,
-  Users
-} from 'lucide-react';
+import { Building2, Grid, CheckCircle2, CreditCard, Percent, Activity } from 'lucide-react';
 
 export const AdminDashboardPage = () => {
   const [stats, setStats] = useState(null);
@@ -79,13 +60,7 @@ export const AdminDashboardPage = () => {
     { name: 'Accessible Priority', value: stats.vehicleDistribution?.ACCESSIBLE || 0, color: '#F59E0B' },
   ].filter(d => d.value > 0);
 
-  // If no vehicles booked yet, provide graceful demo distribution
-  const displayVehicleData = vehicleChartData.length > 0 ? vehicleChartData : [
-    { name: 'Standard Car', value: 14, color: '#3B82F6' },
-    { name: 'EV Bay', value: 6, color: '#10B981' },
-    { name: 'Two-Wheeler (Bike)', value: 5, color: '#8B5CF6' },
-    { name: 'Accessible Priority', value: 2, color: '#F59E0B' },
-  ];
+  const displayVehicleData = vehicleChartData;
 
   return (
     <div className="space-y-8">
@@ -94,13 +69,13 @@ export const AdminDashboardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
-            EXECUTIVE CONTROL PANEL
+            Admin overview
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-            System Architecture & Operations Analytics
+            Operations dashboard
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real-time telemetry across facilities, bay utilization, revenue, and active reservations
+            Facilities, bay utilisation, revenue and reservations at a glance
           </p>
         </div>
 
@@ -124,16 +99,16 @@ export const AdminDashboardPage = () => {
 
       {/* 6 Metric KPI Cards (Inspired by the Reference Poster Admin Dashboard) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-[10px] font-bold uppercase">Locations</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{stats.totalLocations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Active facilities</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Parking facilities</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-[10px] font-bold uppercase">Total Bays</span>
             <Grid className="w-4 h-4 text-purple-600" />
@@ -142,34 +117,34 @@ export const AdminDashboardPage = () => {
           <div className="text-[10px] text-slate-400 mt-0.5">Physical parking slots</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-emerald-600 mb-2">
             <span className="text-[10px] font-bold uppercase">Available</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-emerald-600">{stats.availableSlots}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Unoccupied bays</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Free right now</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-blue-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Active Passes</span>
+            <span className="text-[10px] font-bold uppercase">Confirmed bookings</span>
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-700">{stats.activeReservations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Currently confirmed</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Paid, not yet used</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-indigo-600 mb-2">
             <span className="text-[10px] font-bold uppercase">Total Revenue</span>
             <CreditCard className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">₹{stats.totalRevenue}</div>
-          <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">+14% vs last week</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">From completed payments</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-amber-600 mb-2">
             <span className="text-[10px] font-bold uppercase">Occupancy</span>
             <Percent className="w-4 h-4 text-amber-500" />
@@ -183,15 +158,13 @@ export const AdminDashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Revenue & Booking Trends Area Chart (8 Cols) */}
-        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-base text-slate-900">Booking & Revenue Trends</h3>
-              <p className="text-xs text-slate-400">Past 7 days turnover and booking traffic</p>
+              <h2 className="font-bold text-base text-slate-900">Booking &amp; revenue trends</h2>
+              <p className="text-xs text-slate-400">Revenue and new bookings over the past 7 days</p>
             </div>
-            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700">
-              Daily Aggregation
-            </span>
+
           </div>
 
           <div className="h-72 w-full pt-4">
@@ -213,7 +186,7 @@ export const AdminDashboardPage = () => {
                     color: '#fff',
                     fontSize: '12px',
                   }}
-                  formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name === 'revenue' ? 'Revenue' : 'Bookings']}
+                  formatter={(value) => [`₹${value}`, 'Revenue']}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
               </AreaChart>
@@ -222,12 +195,15 @@ export const AdminDashboardPage = () => {
         </div>
 
         {/* Vehicle Classification Donut Chart (4 Cols) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-base text-slate-900">Vehicle Type Breakdown</h3>
             <p className="text-xs text-slate-400">Distribution across user reservations</p>
           </div>
 
+          {displayVehicleData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-xs text-slate-500">No bookings yet.</div>
+          ) : (
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -256,6 +232,7 @@ export const AdminDashboardPage = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-100">
             {displayVehicleData.map((item) => (
@@ -273,13 +250,14 @@ export const AdminDashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Top Locations Table (5 Cols) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base text-slate-900">Top Facilities</h3>
             <Link to="/admin/locations" className="text-xs font-bold text-blue-600 hover:text-blue-700">View All</Link>
           </div>
 
           <div className="space-y-3 pt-1">
+            {stats.topLocations?.length === 0 && <p className="text-xs text-slate-500">No bookings yet.</p>}
             {stats.topLocations?.map((loc, idx) => (
               <div key={loc.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -288,7 +266,6 @@ export const AdminDashboardPage = () => {
                   </span>
                   <div>
                     <h4 className="font-bold text-xs text-slate-800 line-clamp-1">{loc.name}</h4>
-                    <span className="text-[10px] text-slate-400">{loc.city}</span>
                   </div>
                 </div>
 
@@ -302,7 +279,7 @@ export const AdminDashboardPage = () => {
         </div>
 
         {/* Recent Bookings (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-base text-slate-900">Live Reservations</h3>

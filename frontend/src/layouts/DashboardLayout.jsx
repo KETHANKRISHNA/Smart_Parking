@@ -16,13 +16,12 @@ import {
   Bell,
   Menu,
   X,
-  ChevronRight,
   Shield,
   ExternalLink
 } from 'lucide-react';
 
 export const DashboardLayout = () => {
-  const { user, isAdmin, isManager, isUser, logout } = useAuth();
+  const { user, isAdmin, isManager, logout } = useAuth();
   const { unreadCount, setIsOpen: openNotifications } = useNotifications();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -45,6 +44,7 @@ export const DashboardLayout = () => {
         { label: 'All Bookings', path: '/admin/bookings', icon: CalendarCheck },
         { label: 'User Accounts', path: '/admin/users', icon: Users },
         { label: 'System Audit Logs', path: '/admin/audit-logs', icon: FileText },
+        { label: 'My Account', path: '/profile', icon: User },
       ];
     }
     if (isManager) {
@@ -52,7 +52,7 @@ export const DashboardLayout = () => {
         { label: 'Manager Overview', path: '/manager/dashboard', icon: LayoutDashboard },
         { label: 'Facility Slots', path: '/manager/slots', icon: Grid },
         { label: 'Gate QR Scanner', path: '/manager/scanner', icon: ScanLine },
-        { label: "Today's Arrivals", path: '/manager/today', icon: CalendarCheck },
+        { label: 'My Account', path: '/profile', icon: User },
       ];
     }
     // Default User
@@ -73,8 +73,9 @@ export const DashboardLayout = () => {
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs md:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -97,8 +98,9 @@ export const DashboardLayout = () => {
           <button
             onClick={() => setSidebarOpen(false)}
             className="md:hidden text-slate-400 hover:text-white"
+            aria-label="Close menu"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -155,8 +157,9 @@ export const DashboardLayout = () => {
             onClick={handleLogout}
             className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
             title="Sign Out"
+            aria-label="Sign out"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </aside>
@@ -169,12 +172,13 @@ export const DashboardLayout = () => {
             <button
               onClick={() => setSidebarOpen(true)}
               className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+              aria-label="Open menu"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5" aria-hidden="true" />
             </button>
-            <h1 className="text-base font-bold text-slate-800">
+            <p className="text-base font-bold text-slate-800">
               {isAdmin ? 'System Administration' : isManager ? 'Parking Facility Control' : 'User Portal'}
-            </h1>
+            </p>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -189,16 +193,17 @@ export const DashboardLayout = () => {
               onClick={() => openNotifications(true)}
               className="relative p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5" aria-hidden="true" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
               <Shield className="w-3.5 h-3.5 text-blue-600" />
               <span>Role:</span>
               <span className="font-bold text-slate-900">{user?.role?.replace('ROLE_', '')}</span>
