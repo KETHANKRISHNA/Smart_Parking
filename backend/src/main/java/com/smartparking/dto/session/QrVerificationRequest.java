@@ -1,13 +1,15 @@
 package com.smartparking.dto.session;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class QrVerificationRequest {
 
     @NotBlank(message = "QR Token is required")
     private String qrToken;
 
-    private String gateName = "Gate 1 (Main Entrance)";
+    @Size(max = 60, message = "Gate name is too long")
+    private String gateName;
 
     public QrVerificationRequest() {}
 

@@ -17,68 +17,81 @@ public class JwtTokenProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
+    private static final String TYPE_CLAIM = "type";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_REFRESH = "refresh";
+    private static final int MIN_SECRET_BYTES = 32;
+
     private final SecretKey secretKey;
     private final long expirationMs;
     private final long refreshExpirationMs;
 
     public JwtTokenProvider(
-            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.secret:}") String secret,
             @Value("${app.jwt.expiration-ms:86400000}") long expirationMs,
             @Value("${app.jwt.refresh-expiration-ms:604800000}") long refreshExpirationMs) {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be set to a random value of at least " + MIN_SECRET_BYTES + " characters");
+        }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
         this.refreshExpirationMs = refreshExpirationMs;
     }
 
     public String generateToken(Authentication authentication) {
-        CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
-        return generateTokenFromUserDetails(userPrincipal, expirationMs);
+        return generateAccessToken((CustomUserDetails) authentication.getPrincipal());
     }
 
-    public String generateTokenFromUserDetails(CustomUserDetails userPrincipal, long expiry) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiry);
+    public String generateAccessToken(CustomUserDetails user) {
+        return build(user, TYPE_ACCESS, expirationMs);
+    }
 
+    public String generateRefreshToken(CustomUserDetails user) {
+        return build(user, TYPE_REFRESH, refreshExpirationMs);
+    }
+
+    private String build(CustomUserDetails user, String type, long expiry) {
+        Date now = new Date();
         return Jwts.builder()
-                .subject(userPrincipal.getEmail())
-                .claim("id", userPrincipal.getId())
-                .claim("name", userPrincipal.getName())
-                .claim("role", userPrincipal.getRole().name())
+                .subject(user.getEmail())
+                .claim("id", user.getId())
+                .claim("name", user.getName())
+                .claim("role", user.getRole().name())
+                .claim(TYPE_CLAIM, type)
                 .issuedAt(now)
-                .expiration(expiryDate)
+                .expiration(new Date(now.getTime() + expiry))
                 .signWith(secretKey)
                 .compact();
     }
 
-    public String generateRefreshToken(CustomUserDetails userPrincipal) {
-        return generateTokenFromUserDetails(userPrincipal, refreshExpirationMs);
-    }
-
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return claims.getSubject();
+        return parse(token).getSubject();
     }
 
-    public boolean validateToken(String token) {
+    /** True only for a valid, unexpired token of the access type (refresh tokens never authenticate API calls). */
+    public boolean validateAccessToken(String token) {
+        return validateType(token, TYPE_ACCESS);
+    }
+
+    public boolean validateRefreshToken(String token) {
+        return validateType(token, TYPE_REFRESH);
+    }
+
+    private boolean validateType(String token, String expectedType) {
         try {
-            Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
-            return true;
+            return expectedType.equals(parse(token).get(TYPE_CLAIM, String.class));
         } catch (SecurityException | MalformedJwtException e) {
-            logger.error("Invalid JWT signature: {}", e.getMessage());
+            logger.debug("Invalid JWT: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage());
+            logger.debug("JWT expired: {}", e.getMessage());
+        } catch (UnsupportedJwtException | IllegalArgumentException e) {
+            logger.debug("JWT rejected: {}", e.getMessage());
         }
         return false;
+    }
+
+    private Claims parse(String token) {
+        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
     }
 }

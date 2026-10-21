@@ -1,361 +1,283 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import api from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import {
-  Search,
-  MapPin,
-  SlidersHorizontal,
-  Car,
-  Bike,
-  Zap,
-  Clock,
-  ArrowRight,
-  Map as MapIcon,
-  List as ListIcon,
-  Sparkles,
-  Building,
-  CheckCircle2,
-  XCircle
-} from 'lucide-react';
+import { Search, MapPin, ArrowRight, Map as MapIcon, List as ListIcon, AlertCircle, Locate, SlidersHorizontal } from 'lucide-react';
+import api from '../services/api';
+import { FacilityImage } from '../components/common/FacilityImage';
+import { EmptyState } from '../components/common/EmptyState';
+import { categoryOf } from '../utils/categories';
+import { usePageTitle } from '../hooks/usePageTitle';
 
-// Fix Leaflet marker icons in Vite
-const customMarkerIcon = new L.DivIcon({
+// A DivIcon avoids Leaflet's default marker images, which Vite cannot resolve
+const markerIcon = new L.DivIcon({
   className: 'custom-pin',
-  html: `<div style="background-color: #1E3A8A; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">P</div>`,
+  html: `<div style="background-color:#1E3A8A;color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,.3)">P</div>`,
   iconSize: [34, 34],
   iconAnchor: [17, 34],
   popupAnchor: [0, -30],
 });
 
-// Helper component to center map on selection
+const CATEGORIES = [
+  ['', 'All places'],
+  ['HOSPITAL', 'Hospitals'],
+  ['MALL', 'Malls'],
+  ['RAILWAY_STATION', 'Railway stations'],
+  ['AIRPORT', 'Airports'],
+  ['IT_PARK', 'IT parks'],
+  ['TOURIST_SPOT', 'Tourist spots'],
+  ['COMMERCIAL_HUB', 'Commercial hubs'],
+];
+const PRICE_CAP = 200; // slider maximum; at the maximum there is no price limit
+const DEFAULT_CENTER = [12.9716, 77.5946];
+
 const MapRecenter = ({ center }) => {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.setView(center, 13, { animate: true });
-    }
+    if (center) map.setView(center, 13, { animate: true });
   }, [center, map]);
   return null;
 };
 
-export const SearchParkingPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('split'); // 'split' or 'list'
+const hasCoordinates = (loc) => Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude);
 
-  // Filters state
-  const [query, setQuery] = useState(searchParams.get('query') || '');
-  const [city, setCity] = useState(searchParams.get('city') || '');
-  const [category, setCategory] = useState(searchParams.get('category') || '');
-  const [vehicleType, setVehicleType] = useState('ALL');
-  const [maxPrice, setMaxPrice] = useState(150);
+export const SearchParkingPage = () => {
+  usePageTitle('Find parking');
+  // The URL is the single source of truth for search filters, so shared links and footer links just work
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.get('query') || '';
+  const city = searchParams.get('city') || '';
+  const category = searchParams.get('category') || '';
+
+  const [queryInput, setQueryInput] = useState(urlQuery);
+  const [locations, setLocations] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  // The map only earns its space on wide screens; phones start with the list
+  const [viewMode, setViewMode] = useState(() => (window.matchMedia?.('(min-width: 1024px)').matches ? 'split' : 'list'));
+  const [sortBy, setSortBy] = useState('free');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [maxPrice, setMaxPrice] = useState(PRICE_CAP);
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+
+  const setParam = (key, value) =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      return next;
+    }, { replace: true });
+
+  // Typing is debounced into the URL; the URL change triggers the fetch
+  useEffect(() => {
+    const timer = setTimeout(() => queryInput !== urlQuery && setParam('query', queryInput.trim()), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryInput]);
+
+  useEffect(() => setQueryInput(urlQuery), [urlQuery]);
 
   useEffect(() => {
-    const fetchLocations = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (query) params.append('query', query);
-        if (city) params.append('city', city);
-        if (category) params.append('category', category);
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    api
+      .get('/parking', { params: { query: urlQuery || undefined, city: city || undefined, category: category || undefined }, signal: controller.signal })
+      .then((res) => setLocations(res.data))
+      .catch((err) => !controller.signal.aborted && setError(err.message || 'Could not load parking facilities'))
+      .finally(() => !controller.signal.aborted && setLoading(false));
+    return () => controller.abort();
+  }, [urlQuery, city, category]);
 
-        const res = await api.get(`/parking?${params.toString()}`);
-        if (res.success && res.data) {
-          setLocations(res.data);
-          if (res.data.length > 0 && !selectedLocation) {
-            setSelectedLocation(res.data[0]);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching parking locations:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // The city dropdown lists the cities that actually have facilities
+  useEffect(() => {
+    api.get('/parking').then((res) => setCities([...new Set(res.data.map((l) => l.city))].sort())).catch(() => {});
+  }, []);
 
-    fetchLocations();
-  }, [query, city, category]);
+  const visible = useMemo(
+    () =>
+      locations
+        .filter((l) => (!availableOnly || l.availableSlots > 0) && (maxPrice >= PRICE_CAP || Number(l.hourlyRate) <= maxPrice))
+        .sort((a, b) => {
+          if (sortBy === 'price') return Number(a.hourlyRate) - Number(b.hourlyRate) || a.name.localeCompare(b.name);
+          if (sortBy === 'name') return a.name.localeCompare(b.name);
+          return b.availableSlots - a.availableSlots || a.name.localeCompare(b.name);
+        }),
+    [locations, availableOnly, maxPrice, sortBy]
+  );
 
-  // Client side filtering for price & availability
-  const filteredLocations = locations.filter((loc) => {
-    if (availableOnly && loc.availableSlots <= 0) return false;
-    if (Number(loc.hourlyRate) > maxPrice) return false;
-    return true;
-  });
+  const selected = visible.find((l) => l.id === selectedId) || null;
+  const mappable = visible.filter(hasCoordinates);
+  const mapCenter = selected && hasCoordinates(selected) ? [selected.latitude, selected.longitude] : mappable[0] ? [mappable[0].latitude, mappable[0].longitude] : DEFAULT_CENTER;
 
-  const mapCenter = selectedLocation
-    ? [selectedLocation.latitude, selectedLocation.longitude]
-    : locations.length > 0
-    ? [locations[0].latitude, locations[0].longitude]
-    : [12.9716, 77.5946];
+  const activeFilters = [city, category, availableOnly, maxPrice < PRICE_CAP].filter(Boolean).length;
 
-  const categories = [
-    { label: 'All Places', value: '' },
-    { label: 'Hospitals', value: 'HOSPITAL' },
-    { label: 'Malls', value: 'MALL' },
-    { label: 'Railway Stations', value: 'RAILWAY_STATION' },
-    { label: 'Airports', value: 'AIRPORT' },
-    { label: 'IT Parks', value: 'IT_PARK' },
-    { label: 'Tourist Spots', value: 'TOURIST_SPOT' },
-  ];
+  const resetFilters = () => {
+    setSearchParams({}, { replace: true });
+    setAvailableOnly(false);
+    setMaxPrice(PRICE_CAP);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      
-      {/* Search & Filter Header Bar */}
+      <h1 className="sr-only">Find parking</h1>
+
       <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row items-center gap-3">
-          {/* Query input */}
           <div className="flex-1 relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <label htmlFor="search-query" className="sr-only">Search parking</label>
             <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by facility name, address, or landmark..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+              id="search-query"
+              type="search"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              placeholder="Search by facility name, address or landmark…"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
             />
           </div>
 
-          {/* City Selector */}
-          <div className="w-full md:w-48">
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-hidden cursor-pointer"
-            >
-              <option value="">All Cities</option>
-              <option value="Bangalore">Bangalore</option>
-              <option value="Mumbai">Mumbai</option>
-              <option value="Hyderabad">Hyderabad</option>
+          <div className={`${filtersOpen ? 'block' : 'hidden'} md:block w-full md:w-48`}>
+            <label htmlFor="search-city" className="sr-only">City</label>
+            <select id="search-city" value={city} onChange={(e) => setParam('city', e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none cursor-pointer">
+              <option value="">All cities</option>
+              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
-          {/* View toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 self-end md:self-auto">
-            <button
-              onClick={() => setViewMode('split')}
-              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                viewMode === 'split' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Split Map and List View"
-            >
-              <MapIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Map & List</span>
+          <div className="flex w-full md:w-auto items-center justify-between gap-2 md:self-auto">
+          <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="filter-panel" className="md:hidden px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5">
+            <SlidersHorizontal className="w-4 h-4" aria-hidden="true" /> Filters{activeFilters > 0 && <span className="ml-0.5 px-1.5 rounded-full bg-blue-600 text-white text-[11px]">{activeFilters}</span>}
+          </button>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 ml-auto" role="group" aria-label="Results layout">
+            <button type="button" aria-pressed={viewMode === 'split'} onClick={() => setViewMode('split')} className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'split' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              <MapIcon className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">Map &amp; list</span>
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                viewMode === 'list' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Full List View"
-            >
-              <ListIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">List Only</span>
+            <button type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+              <ListIcon className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">List only</span>
             </button>
+          </div>
           </div>
         </div>
 
-        {/* Category Filters Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          <span className="text-slate-400 font-semibold shrink-0">Category:</span>
-          {categories.map((c) => (
-            <button
-              key={c.value}
-              onClick={() => setCategory(c.value)}
-              className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition-all ${
-                category === c.value
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {c.label}
+        <div id="filter-panel" className={`${filtersOpen ? 'block' : 'hidden'} md:block space-y-4`}>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs" role="group" aria-label="Category">
+          <span className="text-slate-500 font-semibold shrink-0">Category:</span>
+          {CATEGORIES.map(([value, label]) => (
+            <button key={value} type="button" aria-pressed={category === value} onClick={() => setParam('category', value)} className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition-all ${category === value ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {label}
             </button>
           ))}
         </div>
 
-        {/* Secondary filters: Available only toggle & Max Price */}
         <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs text-slate-600">
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={availableOnly}
-                onChange={(e) => setAvailableOnly(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-              />
-              <span className="font-semibold text-slate-700">Available Slots Only</span>
-            </label>
-          </div>
-
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} className="w-4 h-4 text-blue-600 rounded border-slate-300 cursor-pointer" />
+            <span className="font-semibold text-slate-700">Only facilities with free bays</span>
+          </label>
           <div className="flex items-center gap-3">
-            <span className="font-semibold">Max Rate:</span>
-            <input
-              type="range"
-              min="20"
-              max="200"
-              step="10"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="w-28 accent-blue-600 cursor-pointer"
-            />
-            <span className="font-bold text-slate-900">₹{maxPrice}/hr</span>
+            <label htmlFor="max-rate" className="font-semibold">Max rate</label>
+            <input id="max-rate" type="range" min="20" max={PRICE_CAP} step="10" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="w-28 accent-blue-600 cursor-pointer" />
+            <span className="font-bold text-slate-900 w-20">{maxPrice >= PRICE_CAP ? 'Any price' : `₹${maxPrice}/hr`}</span>
           </div>
+        </div>
         </div>
       </div>
 
-      {/* Main Content Layout */}
       <div className={`grid gap-6 ${viewMode === 'split' ? 'grid-cols-1 lg:grid-cols-12' : 'grid-cols-1'}`}>
-        
-        {/* Facilities List Column */}
-        <div className={`${viewMode === 'split' ? 'lg:col-span-7' : 'w-full'} space-y-4`}>
-          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-            <span>Found <strong className="text-slate-800">{filteredLocations.length}</strong> smart parking locations</span>
-            <span>Sorted by popularity & availability</span>
+        <section className={`${viewMode === 'split' ? 'lg:col-span-7' : 'w-full'} space-y-4`} aria-label="Search results">
+          <div className="flex items-center justify-between text-xs text-slate-500 px-1" aria-live="polite">
+            <span>Found <strong className="text-slate-800">{visible.length}</strong> parking {visible.length === 1 ? 'facility' : 'facilities'}</span>
+            <span className="flex items-center gap-2">
+              <label htmlFor="sort-by" className="font-semibold">Sort by</label>
+              <select id="sort-by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                <option value="free">Most free bays</option>
+                <option value="price">Lowest price</option>
+                <option value="name">Name (A–Z)</option>
+              </select>
+            </span>
           </div>
 
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-44 rounded-2xl bg-white border border-slate-200 p-4 animate-pulse" />
-              ))}
+          {error && (
+            <div role="alert" className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {error}
             </div>
-          ) : filteredLocations.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
-              <MapPin className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-slate-700">No parking facilities match your search</h3>
-              <p className="text-xs text-slate-400 mt-1">Try clearing filters or searching for another city.</p>
-              <button
-                onClick={() => { setQuery(''); setCity(''); setCategory(''); setAvailableOnly(false); setMaxPrice(150); }}
-                className="mt-4 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-              >
-                Reset All Filters
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredLocations.map((loc) => {
-                const isSelected = selectedLocation?.id === loc.id;
-                return (
-                  <div
-                    key={loc.id}
-                    onClick={() => setSelectedLocation(loc)}
-                    className={`bg-white rounded-2xl border p-4 sm:p-5 transition-all cursor-pointer flex flex-col sm:flex-row gap-4 ${
-                      isSelected
-                        ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md'
-                        : 'border-slate-200/90 hover:border-blue-300 hover:shadow-md'
-                    }`}
-                  >
-                    {/* Thumbnail */}
-                    <div className="w-full sm:w-44 h-36 rounded-xl overflow-hidden shrink-0 relative bg-slate-100">
-                      <img
-                        src={loc.imageUrl}
-                        alt={loc.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-white/95 text-slate-800 shadow-xs">
-                        {loc.category.replace('_', ' ')}
-                      </span>
-                    </div>
+          )}
 
-                    {/* Details */}
+          {loading ? (
+            <div className="space-y-4" role="status" aria-label="Loading results">
+              {[1, 2, 3].map((i) => <div key={i} className="h-44 rounded-2xl bg-white border border-slate-200 p-4 animate-pulse" />)}
+            </div>
+          ) : visible.length === 0 && !error ? (
+            <EmptyState icon={MapPin} title="No parking facilities match your search" action={<button type="button" onClick={resetFilters} className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100">Reset all filters</button>}>
+              Try clearing the filters or searching another city.
+            </EmptyState>
+          ) : (
+            <ul className="space-y-4">
+              {visible.map((loc) => {
+                const isSelected = selectedId === loc.id;
+                return (
+                  <li key={loc.id} className={`bg-white rounded-2xl border p-4 sm:p-5 transition-all flex flex-col sm:flex-row gap-4 ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md' : 'border-slate-200/90 hover:border-blue-300 hover:shadow-md'}`}>
+                    <FacilityImage src={loc.imageUrl} category={loc.category} className="w-full sm:w-44 h-40 sm:h-36 rounded-xl shrink-0">
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[11px] font-bold bg-white/95 text-slate-800 shadow-sm">{categoryOf(loc.category).label}</span>
+                    </FacilityImage>
+
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-bold text-base text-slate-900 leading-snug">
-                            {loc.name}
-                          </h3>
+                          <h2 className="font-bold text-base text-slate-900 leading-snug">{loc.name}</h2>
                           {loc.availableSlots > 0 ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              {loc.availableSlots} Left
-                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">{loc.availableSlots} free</span>
                           ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                              Full
-                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0">Full</span>
                           )}
                         </div>
-
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{loc.address}, {loc.city}</span>
-                        </p>
-
-                        <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
-                          {loc.description}
-                        </p>
+                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" /><span>{loc.address}, {loc.city}</span></p>
+                        <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">{loc.description}</p>
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                         <div>
-                          <div className="text-[11px] text-slate-400">Hourly Rate</div>
-                          <div className="text-base font-extrabold text-slate-900">
-                            ₹{loc.hourlyRate} <span className="text-xs font-medium text-slate-500">/ hr</span>
-                          </div>
+                          <div className="text-[11px] text-slate-500">Hourly rate</div>
+                          <div className="text-base font-extrabold text-slate-900">₹{loc.hourlyRate} <span className="text-xs font-medium text-slate-500">/ hr</span></div>
                         </div>
-
-                        <Link
-                          to={`/parking/${loc.id}`}
-                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm shadow-blue-600/30 flex items-center gap-1.5 transition-all hover:scale-105"
-                        >
-                          Select Bay & Book
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          {viewMode === 'split' && hasCoordinates(loc) && (
+                            <button type="button" onClick={() => setSelectedId(loc.id)} className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1.5" aria-label={`Show ${loc.name} on the map`}>
+                              <Locate className="w-3.5 h-3.5" aria-hidden="true" /> Map
+                            </button>
+                          )}
+                          <Link to={`/parking/${loc.id}`} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm shadow-blue-600/30 flex items-center gap-1.5">
+                            Select bay &amp; book <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Interactive Leaflet Map Column (Split view) */}
         {viewMode === 'split' && (
-          <div className="lg:col-span-5 h-[580px] lg:h-[720px] sticky top-20 rounded-2xl overflow-hidden border border-slate-200 shadow-md">
-            <MapContainer
-              center={mapCenter}
-              zoom={13}
-              scrollWheelZoom={true}
-              className="w-full h-full"
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+          <div className="lg:col-span-5 h-[580px] lg:h-[720px] lg:sticky lg:top-20 rounded-2xl overflow-hidden border border-slate-200 shadow-md">
+            <MapContainer center={mapCenter} zoom={13} scrollWheelZoom className="w-full h-full">
+              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapRecenter center={mapCenter} />
-
-              {filteredLocations.map((loc) => (
-                <Marker
-                  key={loc.id}
-                  position={[loc.latitude, loc.longitude]}
-                  icon={customMarkerIcon}
-                  eventHandlers={{
-                    click: () => setSelectedLocation(loc),
-                  }}
-                >
+              {mappable.map((loc) => (
+                <Marker key={loc.id} position={[loc.latitude, loc.longitude]} icon={markerIcon} eventHandlers={{ click: () => setSelectedId(loc.id) }}>
                   <Popup>
                     <div className="p-1 max-w-[200px]">
-                      <h4 className="font-bold text-sm text-slate-900">{loc.name}</h4>
+                      <h3 className="font-bold text-sm text-slate-900">{loc.name}</h3>
                       <p className="text-[11px] text-slate-500 mt-0.5">{loc.address}</p>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
                         <span className="font-extrabold text-blue-700 text-xs">₹{loc.hourlyRate}/hr</span>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                          {loc.availableSlots} slots left
-                        </span>
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{loc.availableSlots} free</span>
                       </div>
-                      <Link
-                        to={`/parking/${loc.id}`}
-                        className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-lg"
-                      >
-                        Book This Location
-                      </Link>
+                      <Link to={`/parking/${loc.id}`} className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-lg">Book this facility</Link>
                     </div>
                   </Popup>
                 </Marker>
@@ -363,7 +285,6 @@ export const SearchParkingPage = () => {
             </MapContainer>
           </div>
         )}
-
       </div>
     </div>
   );

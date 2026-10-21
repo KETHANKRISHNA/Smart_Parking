@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft, Home } from 'lucide-react';
+import { ShieldAlert, Home } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const AccessDeniedPage = () => {
+  usePageTitle('Access denied');
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 max-w-md w-full text-center space-y-5 shadow-xl">

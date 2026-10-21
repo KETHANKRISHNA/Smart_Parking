@@ -49,8 +49,7 @@ public class BookingController {
     public ResponseEntity<ApiResponse<BookingResponse>> getBookingById(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long id) {
-        boolean isAdminOrManager = userDetails.getRole() == Role.ROLE_ADMIN || userDetails.getRole() == Role.ROLE_PARKING_MANAGER;
-        BookingResponse response = bookingService.getBookingDetails(id, userDetails.getId(), isAdminOrManager);
+        BookingResponse response = bookingService.getBookingDetails(id, userDetails.getId(), userDetails.getRole());
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -59,8 +58,7 @@ public class BookingController {
     public ResponseEntity<ApiResponse<BookingResponse>> getBookingByReference(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String reference) {
-        boolean isAdminOrManager = userDetails.getRole() == Role.ROLE_ADMIN || userDetails.getRole() == Role.ROLE_PARKING_MANAGER;
-        BookingResponse response = bookingService.getBookingByReference(reference, userDetails.getId(), isAdminOrManager);
+        BookingResponse response = bookingService.getBookingByReference(reference, userDetails.getId(), userDetails.getRole());
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -72,7 +70,7 @@ public class BookingController {
             @RequestBody(required = false) CancelBookingRequest request) {
         boolean isAdmin = userDetails.getRole() == Role.ROLE_ADMIN;
         String reason = request != null ? request.getReason() : "Cancelled by user";
-        BookingResponse response = bookingService.cancelBooking(id, userDetails.getId(), isAdmin, reason);
+        BookingResponse response = bookingService.cancelBooking(id, userDetails.getId(), userDetails.getEmail(), isAdmin, reason);
         return ResponseEntity.ok(ApiResponse.ok("Booking cancelled successfully", response));
     }
 }

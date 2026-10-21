@@ -3,15 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import {
   User,
-  Mail,
-  Phone,
-  Shield,
   Lock,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const ProfilePage = () => {
+  usePageTitle('My account');
   const { user, updateUser } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
@@ -51,8 +50,8 @@ export const ProfilePage = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(newPassword)) {
+      setPasswordMessage({ type: 'error', text: 'Use 8 to 64 characters with at least one letter and one number' });
       return;
     }
 
@@ -76,8 +75,8 @@ export const ProfilePage = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Account & Security Settings</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Manage your driver profile, vehicle details, and account credentials</p>
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Account &amp; security</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Update your contact details and change your password</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -105,8 +104,8 @@ export const ProfilePage = () => {
 
           <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Full Name</label>
-              <input
+              <label htmlFor="profile-field-1" className="block font-bold text-slate-700 uppercase mb-1">Full Name</label>
+              <input id="profile-field-1"
                 type="text"
                 required
                 value={name}
@@ -116,19 +115,19 @@ export const ProfilePage = () => {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
-              <input
+              <label htmlFor="profile-field-2" className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
+              <input id="profile-field-2"
                 type="email"
                 disabled
                 value={user?.email || ''}
                 className="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed"
               />
-              <span className="text-[10px] text-slate-400 mt-1 block">Email is permanently bound to authentication tokens.</span>
+              <span className="text-[11px] text-slate-400 mt-1 block">Email is permanently bound to authentication tokens.</span>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
-              <input
+              <label htmlFor="profile-field-3" className="block font-bold text-slate-700 uppercase mb-1">Phone Number</label>
+              <input id="profile-field-3"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -177,8 +176,8 @@ export const ProfilePage = () => {
 
           <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Current Password</label>
-              <input
+              <label htmlFor="profile-field-4" className="block font-bold text-slate-700 uppercase mb-1">Current Password</label>
+              <input id="profile-field-4"
                 type="password"
                 required
                 value={currentPassword}
@@ -189,8 +188,8 @@ export const ProfilePage = () => {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">New Password</label>
-              <input
+              <label htmlFor="profile-field-5" className="block font-bold text-slate-700 uppercase mb-1">New Password</label>
+              <input id="profile-field-5"
                 type="password"
                 required
                 value={newPassword}
@@ -201,8 +200,8 @@ export const ProfilePage = () => {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Confirm New Password</label>
-              <input
+              <label htmlFor="profile-field-6" className="block font-bold text-slate-700 uppercase mb-1">Confirm New Password</label>
+              <input id="profile-field-6"
                 type="password"
                 required
                 value={confirmPassword}

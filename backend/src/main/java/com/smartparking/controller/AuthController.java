@@ -2,6 +2,7 @@ package com.smartparking.controller;
 
 import com.smartparking.dto.auth.AuthResponse;
 import com.smartparking.dto.auth.LoginRequest;
+import com.smartparking.dto.auth.RefreshTokenRequest;
 import com.smartparking.dto.auth.RegisterRequest;
 import com.smartparking.dto.auth.UserProfileResponse;
 import com.smartparking.dto.common.ApiResponse;
@@ -39,8 +40,14 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Login successful", response));
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Exchange a refresh token for a new access/refresh token pair")
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Token refreshed", authService.refresh(request.getRefreshToken())));
+    }
+
     @PostMapping("/logout")
-    @Operation(summary = "Logout user")
+    @Operation(summary = "Logout user (tokens are stateless; the client discards them)")
     public ResponseEntity<ApiResponse<Void>> logout() {
         return ResponseEntity.ok(ApiResponse.ok("Logged out successfully", null));
     }

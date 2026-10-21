@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/payments")
-@Tag(name = "Payments & Transactions", description = "Endpoints for initiating and confirming demo/live payments")
+@Tag(name = "Payments & Transactions", description = "Endpoints for initiating and confirming payments")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -36,11 +36,11 @@ public class PaymentController {
     }
 
     @PostMapping("/confirm")
-    @Operation(summary = "Confirm payment (Simulated Gateway Demo Mode)")
+    @Operation(summary = "Confirm payment: the server-side gateway decides the outcome")
     public ResponseEntity<ApiResponse<PaymentResponse>> confirmPayment(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody PaymentConfirmRequest request) {
-        PaymentResponse response = paymentService.confirmSimulatedPayment(request, userDetails.getId());
+        PaymentResponse response = paymentService.confirmPayment(request, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.ok("Payment confirmed", response));
     }
 

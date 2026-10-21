@@ -4,18 +4,12 @@ import com.smartparking.dto.booking.BookingResponse;
 import com.smartparking.dto.common.ApiResponse;
 import com.smartparking.dto.parking.ParkingLocationDto;
 import com.smartparking.dto.parking.ParkingSlotDto;
+import com.smartparking.dto.parking.UpdateSlotStatusRequest;
 import com.smartparking.dto.session.QrVerificationRequest;
 import com.smartparking.dto.session.SessionResponse;
-import com.smartparking.entity.ParkingLocation;
-import com.smartparking.entity.User;
-import com.smartparking.enums.SlotStatus;
-import com.smartparking.exception.BadRequestException;
-import com.smartparking.exception.ResourceNotFoundException;
-import com.smartparking.repository.BookingRepository;
-import com.smartparking.repository.ParkingLocationRepository;
-import com.smartparking.repository.UserRepository;
 import com.smartparking.security.CustomUserDetails;
 import com.smartparking.service.BookingService;
+import com.smartparking.service.FacilityAccessService;
 import com.smartparking.service.ParkingLocationService;
 import com.smartparking.service.ParkingSessionService;
 import com.smartparking.service.ParkingSlotService;
@@ -23,126 +17,103 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Operator portal. Role access (manager or admin) is enforced in SecurityConfig; every endpoint is further
+ * scoped to a facility the caller operates (admins: any). Pass {@code locationId} to pick one; without it the
+ * caller's first facility is used.
+ */
 @RestController
 @RequestMapping("/api/v1/manager")
-@PreAuthorize("hasAnyRole('PARKING_MANAGER', 'ADMIN')")
-@Tag(name = "Parking Manager Portal", description = "Endpoints for assigned facility operators to manage live slot statuses and gate entry/exit")
+@Tag(name = "Parking Manager Portal", description = "Endpoints for facility operators to manage live bay statuses and gate entry/exit")
 public class ParkingManagerController {
 
-    private final ParkingLocationRepository locationRepository;
+    private final FacilityAccessService facilityAccess;
     private final ParkingLocationService locationService;
     private final ParkingSlotService slotService;
-    private final BookingRepository bookingRepository;
     private final BookingService bookingService;
     private final ParkingSessionService sessionService;
-    private final UserRepository userRepository;
 
-    public ParkingManagerController(ParkingLocationRepository locationRepository,
+    public ParkingManagerController(FacilityAccessService facilityAccess,
                                     ParkingLocationService locationService,
                                     ParkingSlotService slotService,
-                                    BookingRepository bookingRepository,
                                     BookingService bookingService,
-                                    ParkingSessionService sessionService,
-                                    UserRepository userRepository) {
-        this.locationRepository = locationRepository;
+                                    ParkingSessionService sessionService) {
+        this.facilityAccess = facilityAccess;
         this.locationService = locationService;
         this.slotService = slotService;
-        this.bookingRepository = bookingRepository;
         this.bookingService = bookingService;
         this.sessionService = sessionService;
-        this.userRepository = userRepository;
     }
 
-    private ParkingLocation getAssignedLocation(CustomUserDetails userDetails) {
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Manager user not found"));
-
-        List<ParkingLocation> managed = locationRepository.findByManager(user);
-        if (managed.isEmpty()) {
-            // Fallback: if admin or unassigned manager, default to first location so portal is fully functional
-            return locationRepository.findAll().stream().findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("No parking facilities found in system"));
-        }
-        return managed.get(0);
+    @GetMapping("/facilities")
+    @Operation(summary = "List the facilities this operator can manage")
+    public ResponseEntity<ApiResponse<List<ParkingLocationDto>>> getFacilities(
+            @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(ApiResponse.ok(locationService.getManagedFacilities(user)));
     }
 
     @GetMapping("/facility")
-    @Operation(summary = "Get assigned parking facility details")
-    public ResponseEntity<ApiResponse<ParkingLocationDto>> getAssignedFacility(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        ParkingLocation loc = getAssignedLocation(userDetails);
-        return ResponseEntity.ok(ApiResponse.ok(locationService.mapToDtoWithCurrentAvailability(loc)));
+    @Operation(summary = "Get a managed parking facility with live availability")
+    public ResponseEntity<ApiResponse<ParkingLocationDto>> getFacility(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(required = false) Long locationId) {
+        return ResponseEntity.ok(ApiResponse.ok(locationService.getManagedFacility(user, locationId)));
     }
 
     @GetMapping("/facility/slots")
-    @Operation(summary = "Get live slot inventory for assigned facility")
+    @Operation(summary = "Get the live bay inventory of a managed facility")
     public ResponseEntity<ApiResponse<List<ParkingSlotDto>>> getFacilitySlots(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        ParkingLocation loc = getAssignedLocation(userDetails);
-        List<ParkingSlotDto> slots = slotService.getSlotsForLocation(loc.getId(), null, null);
-        return ResponseEntity.ok(ApiResponse.ok(slots));
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(required = false) Long locationId) {
+        Long id = facilityAccess.resolveFacilityId(user, locationId);
+        return ResponseEntity.ok(ApiResponse.ok(slotService.getSlotsForLocation(id, null, null)));
     }
 
     @PatchMapping("/slots/{slotId}/status")
-    @Operation(summary = "Update slot status (e.g. mark out of service or available)")
+    @Operation(summary = "Mark a bay available or out of service")
     public ResponseEntity<ApiResponse<ParkingSlotDto>> updateSlotStatus(
+            @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long slotId,
-            @RequestBody Map<String, String> body) {
-        SlotStatus status = SlotStatus.valueOf(body.get("status"));
-        ParkingSlotDto slot = slotService.updateSlotStatus(slotId, status);
-        return ResponseEntity.ok(ApiResponse.ok("Status updated", slot));
+            @Valid @RequestBody UpdateSlotStatusRequest body) {
+        return ResponseEntity.ok(ApiResponse.ok("Status updated",
+                slotService.updateSlotStatus(slotId, body.getStatus(), user)));
     }
 
     @GetMapping("/today-bookings")
-    @Operation(summary = "Get today's arrivals and reservations for assigned facility")
+    @Operation(summary = "Today's reservations (by reserved time) for a managed facility")
     public ResponseEntity<ApiResponse<List<BookingResponse>>> getTodayFacilityBookings(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        ParkingLocation loc = getAssignedLocation(userDetails);
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-
-        List<BookingResponse> list = bookingRepository.findByParkingLocationIdOrderByCreatedAtDesc(loc.getId()).stream()
-                .filter(b -> b.getCreatedAt() != null && !b.getCreatedAt().isBefore(startOfDay))
-                .map(bookingService::mapToResponse)
-                .toList();
-
-        return ResponseEntity.ok(ApiResponse.ok(list));
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(required = false) Long locationId) {
+        Long id = facilityAccess.resolveFacilityId(user, locationId);
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.getTodayBookingsForLocation(id)));
     }
 
     @PostMapping("/verify-ticket")
-    @Operation(summary = "Verify ticket QR code from scanner")
-    public ResponseEntity<ApiResponse<SessionResponse>> verifyTicket(@RequestBody Map<String, String> body) {
-        String token = body.get("qrToken");
-        if (token == null || token.trim().isEmpty()) {
-            throw new BadRequestException("qrToken is required");
-        }
-        SessionResponse res = sessionService.verifyQrToken(token.trim());
-        return ResponseEntity.ok(ApiResponse.ok(res));
+    @Operation(summary = "Verify a ticket QR code from the scanner")
+    public ResponseEntity<ApiResponse<SessionResponse>> verifyTicket(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Valid @RequestBody QrVerificationRequest body) {
+        return ResponseEntity.ok(ApiResponse.ok(sessionService.verifyQrToken(body.getQrToken(), user)));
     }
 
     @PostMapping("/gate-entry")
-    @Operation(summary = "Process gate check-in entry")
+    @Operation(summary = "Process gate check-in")
     public ResponseEntity<ApiResponse<SessionResponse>> processEntry(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody QrVerificationRequest request) {
-        SessionResponse res = sessionService.processVehicleEntry(request, userDetails.getEmail());
-        return ResponseEntity.ok(ApiResponse.ok(res));
+        return ResponseEntity.ok(ApiResponse.ok(sessionService.processVehicleEntry(request, user)));
     }
 
     @PostMapping("/gate-exit")
-    @Operation(summary = "Process gate check-out exit")
+    @Operation(summary = "Process gate check-out")
     public ResponseEntity<ApiResponse<SessionResponse>> processExit(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody QrVerificationRequest request) {
-        SessionResponse res = sessionService.processVehicleExit(request, userDetails.getEmail());
-        return ResponseEntity.ok(ApiResponse.ok(res));
+        return ResponseEntity.ok(ApiResponse.ok(sessionService.processVehicleExit(request, user)));
     }
 }

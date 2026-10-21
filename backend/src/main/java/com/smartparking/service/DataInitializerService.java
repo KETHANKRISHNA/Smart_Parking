@@ -6,6 +6,8 @@ import com.smartparking.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/** Seeds demo accounts and facilities. Only runs when app.seed.enabled=true (the dev profile). */
 @Service
+@Order(1)
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
 public class DataInitializerService implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializerService.class);
@@ -256,7 +261,7 @@ public class DataInitializerService implements CommandLineRunner {
         p1.setPaymentMethod(PaymentMethod.UPI);
         p1.setPaymentStatus(PaymentStatus.COMPLETED);
         p1.setTransactionId("TXN-DEMO-9821381");
-        p1.setPaymentGatewayReference("RAZORPAY-SIM-1");
+        p1.setPaymentGatewayReference("MOCK-SEED-1");
         p1.setPaidAt(now.minusMinutes(35));
         paymentRepository.save(p1);
 
@@ -299,7 +304,7 @@ public class DataInitializerService implements CommandLineRunner {
         p2.setPaymentMethod(PaymentMethod.CARD);
         p2.setPaymentStatus(PaymentStatus.COMPLETED);
         p2.setTransactionId("TXN-DEMO-7712399");
-        p2.setPaymentGatewayReference("STRIPE-SIM-2");
+        p2.setPaymentGatewayReference("MOCK-SEED-2");
         p2.setPaidAt(now.minusHours(1));
         paymentRepository.save(p2);
 
@@ -327,7 +332,7 @@ public class DataInitializerService implements CommandLineRunner {
         p3.setPaymentMethod(PaymentMethod.UPI);
         p3.setPaymentStatus(PaymentStatus.COMPLETED);
         p3.setTransactionId("TXN-DEMO-6612344");
-        p3.setPaymentGatewayReference("UPI-SIM-3");
+        p3.setPaymentGatewayReference("MOCK-SEED-3");
         p3.setPaidAt(b3.getStartTime().minusMinutes(10));
         paymentRepository.save(p3);
 

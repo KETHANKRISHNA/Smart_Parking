@@ -61,6 +61,8 @@ public class BookingResponse {
     private String exitGate;
 
     private String cancellationReason;
+    /** For PENDING_PAYMENT bookings: when the slot hold lapses unless paid. */
+    private LocalDateTime holdExpiresAt;
     private LocalDateTime createdAt;
 
     public BookingResponse() {}
@@ -178,4 +180,6 @@ public class BookingResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getHoldExpiresAt() { return holdExpiresAt; }
+    public void setHoldExpiresAt(LocalDateTime holdExpiresAt) { this.holdExpiresAt = holdExpiresAt; }
 }

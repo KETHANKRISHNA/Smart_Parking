@@ -1,40 +1,76 @@
 import axios from 'axios';
+import { session } from './session';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+// In production the API is same-origin (/api/... is proxied by Vercel or served by the Spring Boot jar).
+// VITE_API_BASE_URL is only needed to point a dev build at some other backend.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
+export const AUTH_LOGOUT_EVENT = 'auth:logout';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
 
-// Request Interceptor: Attach JWT token if available
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// A bare client for the refresh call so it can never recurse through the interceptors below
+const refreshClient = axios.create({ baseURL: API_BASE_URL, timeout: 15000 });
 
-// Response Interceptor: Handle unhandled 401s
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+const isAuthCall = (config) => AUTH_PATHS.some((p) => config?.url?.startsWith(p));
+
+api.interceptors.request.use((config) => {
+  const token = session.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+let refreshing = null;
+
+/** Exchanges the refresh token for a new pair. Concurrent 401s share one in-flight request. */
+const refreshSession = () => {
+  if (!refreshing) {
+    const refreshToken = session.getRefreshToken();
+    refreshing = (refreshToken
+      ? refreshClient.post('/auth/refresh', { refreshToken }).then((res) => {
+          session.save(res.data.data);
+          return res.data.data.token;
+        })
+      : Promise.reject(new Error('No refresh token'))
+    ).finally(() => {
+      refreshing = null;
+    });
+  }
+  return refreshing;
+};
+
+const toError = (error) => {
+  const body = error.response?.data;
+  const err = new Error(body?.message || error.message || 'An unexpected error occurred');
+  err.status = error.response?.status;
+  // Spring returns { field: message } for validation failures
+  err.fieldErrors = body && typeof body.data === 'object' && body.data !== null ? body.data : undefined;
+  return err;
+};
+
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Optional: auto-logout on token expiration
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') {
-        // preserve token or let AuthContext handle
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && original && !original._retried && !isAuthCall(original)) {
+      original._retried = true;
+      try {
+        const token = await refreshSession();
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
+      } catch {
+        session.clear();
+        window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
       }
     }
-    const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
-    return Promise.reject(new Error(message));
+    return Promise.reject(toError(error));
   }
 );
 

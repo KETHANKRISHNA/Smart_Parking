@@ -1,10 +1,14 @@
 package com.smartparking.dto.auth;
 
-import com.smartparking.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Public self-registration payload. It deliberately has no role field: every self-registered
+ * account is a ROLE_USER. Staff accounts are created by an admin via {@code POST /admin/users}.
+ */
 public class RegisterRequest {
 
     @NotBlank(message = "Name is required")
@@ -13,15 +17,16 @@ public class RegisterRequest {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
+    @Size(max = 150, message = "Email is too long")
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 40, message = "Password must be at least 6 characters")
+    @Size(min = 8, max = 64, message = "Password must be 8 to 64 characters")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Password must contain a letter and a digit")
     private String password;
 
+    @Pattern(regexp = "^$|^[+]?[0-9\\- ]{7,15}$", message = "Phone number is not valid")
     private String phone;
-
-    private Role role = Role.ROLE_USER;
 
     public RegisterRequest() {}
 
@@ -36,7 +41,4 @@ public class RegisterRequest {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
-
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
 }

@@ -1,14 +1,14 @@
 import React from 'react';
-import { CheckCircle2, Clock, AlertTriangle, XCircle, Zap, Car, Bike, ShieldCheck, Activity } from 'lucide-react';
+import { Clock, AlertTriangle, XCircle, Zap, Car, Bike } from 'lucide-react';
 
-export const StatusBadge = ({ status, type = 'status' }) => {
+export const StatusBadge = ({ status }) => {
   const s = String(status || '').toUpperCase();
 
   // Booking or General Status
   if (s === 'CONFIRMED' || s === 'COMPLETED' || s === 'AVAILABLE' || s === 'ACTIVE') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
         {s === 'CONFIRMED' ? 'Confirmed' : s === 'COMPLETED' ? 'Completed' : s === 'AVAILABLE' ? 'Available' : 'Active'}
       </span>
     );

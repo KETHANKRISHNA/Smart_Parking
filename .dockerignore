@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/target
+**/.git
+backend/data
+**/.env
+**/.env.*
+!**/.env.example
+.github
+.vscode
+.idea
+*.md

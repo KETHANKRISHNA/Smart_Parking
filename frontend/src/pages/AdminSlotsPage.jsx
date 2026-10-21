@@ -1,294 +1,204 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Grid, Plus, Trash2, Zap, AlertCircle } from 'lucide-react';
 import api from '../services/api';
-import { StatusBadge } from '../components/common/StatusBadge';
-import {
-  Grid,
-  Plus,
-  Trash2,
-  Zap,
-  Car,
-  Bike,
-  Building,
-  CheckCircle2,
-  AlertTriangle,
-  X,
-  Filter
-} from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { Modal } from '../components/common/Modal';
+import { FormField } from '../components/common/FormField';
+import { usePageTitle } from '../hooks/usePageTitle';
+
+const EMPTY_SLOT = { slotNumber: '', slotType: 'CAR', floorLevel: 'Ground Floor', hasEvCharger: false, customHourlyRate: '' };
+
+const LOOK = {
+  AVAILABLE: 'bg-emerald-50/50 border-emerald-300',
+  OUT_OF_SERVICE: 'bg-slate-100 border-slate-300 opacity-70',
+  OCCUPIED: 'bg-rose-50/50 border-rose-300',
+  RESERVED: 'bg-amber-50/50 border-amber-300',
+};
 
 export const AdminSlotsPage = () => {
+  usePageTitle('Bay inventory');
+  const toast = useToast();
   const [locations, setLocations] = useState([]);
-  const [selectedLocId, setSelectedLocId] = useState('');
+  const [locationId, setLocationId] = useState('');
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-
-  const [newSlot, setNewSlot] = useState({
-    slotNumber: '',
-    slotType: 'CAR',
-    status: 'AVAILABLE',
-    floorLevel: 'Ground Floor',
-    hasEvCharger: false,
-    customHourlyRate: '',
-  });
+  const [error, setError] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newSlot, setNewSlot] = useState(EMPTY_SLOT);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const res = await api.get('/admin/locations');
-        if (res.success && res.data.length > 0) {
-          setLocations(res.data);
-          setSelectedLocId(res.data[0].id);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLocations();
+    api
+      .get('/admin/locations')
+      .then((res) => {
+        setLocations(res.data);
+        if (res.data.length > 0) setLocationId(String(res.data[0].id));
+      })
+      .catch((err) => setError(err.message || 'Could not load facilities'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchSlots = async (locId) => {
-    if (!locId) return;
+  const loadSlots = useCallback(async () => {
+    if (!locationId) return;
     try {
-      const res = await api.get(`/parking/${locId}/slots`);
-      if (res.success) {
-        setSlots(res.data);
-      }
+      const res = await api.get(`/parking/${locationId}/slots`);
+      setSlots(res.data);
+      setError('');
     } catch (err) {
-      console.error(err);
+      setError(err.message || 'Could not load bays');
     }
-  };
+  }, [locationId]);
 
   useEffect(() => {
-    if (selectedLocId) {
-      fetchSlots(selectedLocId);
-    }
-  }, [selectedLocId]);
+    loadSlots();
+  }, [loadSlots]);
 
-  const handleToggleSlotStatus = async (slotId, currentStatus) => {
-    const nextStatus = currentStatus === 'AVAILABLE' ? 'OUT_OF_SERVICE' : 'AVAILABLE';
+  const toggleStatus = async (slot) => {
+    const next = slot.status === 'AVAILABLE' ? 'OUT_OF_SERVICE' : 'AVAILABLE';
     try {
-      await api.patch(`/admin/slots/${slotId}/status`, { status: nextStatus });
-      fetchSlots(selectedLocId);
+      await api.patch(`/admin/slots/${slot.id}/status`, { status: next });
+      loadSlots();
     } catch (err) {
-      alert('Failed to update slot status: ' + err.message);
+      toast.error(err.message || 'Could not update the bay');
     }
   };
 
-  const handleDeleteSlot = async (slotId, slotNumber) => {
-    if (!window.confirm(`Delete bay ${slotNumber}?`)) return;
+  const deleteSlot = async (slot) => {
+    const ok = await toast.confirm({
+      title: `Delete bay ${slot.slotNumber}?`,
+      message: 'Bays with booking history cannot be deleted; take them out of service instead.',
+      confirmLabel: 'Delete bay',
+      danger: true,
+    });
+    if (!ok) return;
     try {
-      await api.delete(`/admin/slots/${slotId}`);
-      fetchSlots(selectedLocId);
+      await api.delete(`/admin/slots/${slot.id}`);
+      toast.success(`Bay ${slot.slotNumber} deleted.`);
+      loadSlots();
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      toast.error(err.message || 'Delete failed');
     }
   };
 
-  const handleCreateSlot = async (e) => {
+  const createSlot = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
       await api.post('/admin/slots', {
         ...newSlot,
-        locationId: Number(selectedLocId),
+        locationId: Number(locationId),
+        status: 'AVAILABLE',
         customHourlyRate: newSlot.customHourlyRate ? Number(newSlot.customHourlyRate) : null,
       });
-      setShowAddModal(false);
-      setNewSlot({
-        slotNumber: '',
-        slotType: 'CAR',
-        status: 'AVAILABLE',
-        floorLevel: 'Ground Floor',
-        hasEvCharger: false,
-        customHourlyRate: '',
-      });
-      fetchSlots(selectedLocId);
+      setShowAdd(false);
+      setNewSlot(EMPTY_SLOT);
+      toast.success('Bay added.');
+      loadSlots();
     } catch (err) {
-      alert('Failed to create slot: ' + err.message);
+      toast.error(err.fieldErrors ? Object.values(err.fieldErrors).join(' ') : err.message || 'Failed to create bay');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const setField = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewSlot((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  if (loading) {
+    return <div className="min-h-[40vh] flex items-center justify-center" role="status" aria-label="Loading"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      
-      {/* Header and Location Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Parking Slot Inventory</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Configure individual parking bays, EV chargers, and maintenance states</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Parking slot inventory</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Add bays, set EV chargers and rates, and manage maintenance states</p>
         </div>
-
         <div className="flex items-center gap-3">
-          <select
-            value={selectedLocId}
-            onChange={(e) => setSelectedLocId(e.target.value)}
-            className="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs focus:outline-hidden"
-          >
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name} ({loc.city})
-              </option>
-            ))}
+          <label htmlFor="facility" className="sr-only">Facility</label>
+          <select id="facility" value={locationId} onChange={(e) => setLocationId(e.target.value)} className="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-sm">
+            {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name} ({loc.city})</option>)}
           </select>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 shrink-0 transition-all hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            Add Bay
+          <button type="button" onClick={() => setShowAdd(true)} disabled={!locationId} className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 shrink-0 disabled:opacity-50">
+            <Plus className="w-4 h-4" aria-hidden="true" /> Add bay
           </button>
         </div>
       </div>
 
-      {/* Visual Slot Layout Cards */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Grid className="w-5 h-5 text-blue-600" />
-            <h2 className="font-bold text-base text-slate-900">Configured Bays ({slots.length})</h2>
-          </div>
-          <span className="text-xs text-slate-400">Click toggle button to switch between Available and Maintenance</span>
+      {error && (
+        <div role="alert" className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" /> {error}
+        </div>
+      )}
+
+      <section className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-6" aria-labelledby="bays-title">
+        <div className="flex items-center gap-2">
+          <Grid className="w-5 h-5 text-blue-600" aria-hidden="true" />
+          <h2 id="bays-title" className="font-bold text-base text-slate-900">Configured bays ({slots.length})</h2>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
           {slots.map((slot) => {
-            const isAvailable = slot.status === 'AVAILABLE';
-            const isOutOfService = slot.status === 'OUT_OF_SERVICE';
-
+            const switchable = slot.status === 'AVAILABLE' || slot.status === 'OUT_OF_SERVICE';
             return (
-              <div
-                key={slot.id}
-                className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between h-36 ${
-                  isAvailable
-                    ? 'bg-emerald-50/50 border-emerald-300'
-                    : isOutOfService
-                    ? 'bg-slate-100 border-slate-300 opacity-60'
-                    : 'bg-rose-50/50 border-rose-300'
-                }`}
-              >
+              <div key={slot.id} className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between h-36 ${LOOK[slot.status] || LOOK.AVAILABLE}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">{slot.floorLevel}</span>
-                  {slot.hasEvCharger && (
-                    <span className="p-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-0.5">
-                      <Zap className="w-3 h-3 fill-emerald-600" />
-                    </span>
-                  )}
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{slot.floorLevel}</span>
+                  {slot.hasEvCharger && <span className="p-0.5 rounded bg-emerald-100 text-emerald-800" title="EV charger"><Zap className="w-3 h-3 fill-emerald-600" aria-label="EV charger" /></span>}
                 </div>
-
                 <div className="text-center my-1">
                   <div className="text-xl font-black font-mono text-slate-900">{slot.slotNumber}</div>
-                  <span className="text-[10px] font-semibold text-slate-500 capitalize">{slot.slotType.toLowerCase()}</span>
+                  <span className="text-[11px] font-semibold text-slate-500 capitalize">{slot.slotType.toLowerCase()} · ₹{slot.effectiveHourlyRate}/h</span>
                 </div>
-
                 <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
                   <button
-                    onClick={() => handleToggleSlotStatus(slot.id, slot.status)}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded transition-colors ${
-                      isAvailable
-                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                    }`}
+                    type="button"
+                    onClick={() => toggleStatus(slot)}
+                    disabled={!switchable}
+                    title={switchable ? 'Toggle in service / out of service' : 'Controlled by bookings and gate scans'}
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors disabled:cursor-not-allowed ${slot.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
                   >
-                    {isAvailable ? 'Active' : 'Offline'}
+                    {slot.status === 'AVAILABLE' ? 'In service' : slot.status === 'OUT_OF_SERVICE' ? 'Offline' : slot.status === 'OCCUPIED' ? 'Occupied' : 'Reserved'}
                   </button>
-
-                  <button
-                    onClick={() => handleDeleteSlot(slot.id, slot.slotNumber)}
-                    className="text-slate-400 hover:text-rose-600 p-1"
-                    title="Delete Bay"
-                  >
-                    <Trash2 className="w-3 h-3" />
+                  <button type="button" onClick={() => deleteSlot(slot)} className="text-slate-400 hover:text-rose-600 p-1" aria-label={`Delete bay ${slot.slotNumber}`}>
+                    <Trash2 className="w-3 h-3" aria-hidden="true" />
                   </button>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+        {slots.length === 0 && !error && <p className="text-center text-sm text-slate-500 py-6">This facility has no bays yet.</p>}
+      </section>
 
-      {/* Add Slot Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900">Add Parking Bay</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+      {showAdd && (
+        <Modal title="Add parking bay" onClose={() => setShowAdd(false)}>
+          <form onSubmit={createSlot} className="space-y-3">
+            <FormField label="Bay number" name="slotNumber" required maxLength={20} placeholder="e.g. C01, E04" value={newSlot.slotNumber} onChange={(e) => setField({ target: { name: 'slotNumber', value: e.target.value.toUpperCase() } })} />
+            <FormField label="Bay type" as="select" name="slotType" value={newSlot.slotType} onChange={setField}>
+              <option value="CAR">Car</option>
+              <option value="EV">EV (electric vehicle)</option>
+              <option value="BIKE">Two-wheeler</option>
+              <option value="ACCESSIBLE">Accessible priority</option>
+            </FormField>
+            <FormField label="Floor level" name="floorLevel" maxLength={20} value={newSlot.floorLevel} onChange={setField} />
+            <FormField label="Custom hourly rate (₹, optional)" type="number" name="customHourlyRate" min="0" step="0.5" hint="Leave blank to use the facility rate." value={newSlot.customHourlyRate} onChange={setField} />
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer pt-1">
+              <input type="checkbox" name="hasEvCharger" checked={newSlot.hasEvCharger} onChange={setField} className="w-4 h-4 rounded text-blue-600" />
+              Has a fast EV charger
+            </label>
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 text-slate-600 font-bold text-xs">Cancel</button>
+              <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/30 disabled:opacity-50">
+                {saving ? 'Saving…' : 'Save bay'}
               </button>
             </div>
-
-            <form onSubmit={handleCreateSlot} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Bay Number</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. C01, E04, B10"
-                  value={newSlot.slotNumber}
-                  onChange={(e) => setNewSlot({ ...newSlot, slotNumber: e.target.value.toUpperCase() })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Bay Type</label>
-                <select
-                  value={newSlot.slotType}
-                  onChange={(e) => setNewSlot({ ...newSlot, slotType: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold"
-                >
-                  <option value="CAR">Car</option>
-                  <option value="EV">EV (Electric Vehicle)</option>
-                  <option value="BIKE">Two-Wheeler (Bike)</option>
-                  <option value="ACCESSIBLE">Accessible Priority</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Floor Level</label>
-                <input
-                  type="text"
-                  value={newSlot.floorLevel}
-                  onChange={(e) => setNewSlot({ ...newSlot, floorLevel: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="evCheck"
-                  checked={newSlot.hasEvCharger}
-                  onChange={(e) => setNewSlot({ ...newSlot, hasEvCharger: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600"
-                />
-                <label htmlFor="evCheck" className="font-semibold text-slate-700 cursor-pointer">
-                  Equipped with Fast EV Charger
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-slate-600 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-600/30"
-                >
-                  Save Bay
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
-
     </div>
   );
 };

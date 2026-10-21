@@ -2,39 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
   PieChart,
   Pie,
   Cell,
-  Legend,
-  BarChart,
-  Bar
 } from 'recharts';
-import {
-  Building2,
-  Grid,
-  CheckCircle2,
-  Calendar,
-  CreditCard,
-  Percent,
-  TrendingUp,
-  MapPin,
-  ArrowRight,
-  Shield,
-  Activity,
-  Car,
-  Bike,
-  Zap,
-  Users
-} from 'lucide-react';
+import { Building2, Grid, CheckCircle2, CreditCard, Percent, Activity } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const AdminDashboardPage = () => {
+  usePageTitle('Admin overview');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,13 +40,7 @@ export const AdminDashboardPage = () => {
     fetchStats();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   if (error || !stats) {
     return (
@@ -79,13 +58,7 @@ export const AdminDashboardPage = () => {
     { name: 'Accessible Priority', value: stats.vehicleDistribution?.ACCESSIBLE || 0, color: '#F59E0B' },
   ].filter(d => d.value > 0);
 
-  // If no vehicles booked yet, provide graceful demo distribution
-  const displayVehicleData = vehicleChartData.length > 0 ? vehicleChartData : [
-    { name: 'Standard Car', value: 14, color: '#3B82F6' },
-    { name: 'EV Bay', value: 6, color: '#10B981' },
-    { name: 'Two-Wheeler (Bike)', value: 5, color: '#8B5CF6' },
-    { name: 'Accessible Priority', value: 2, color: '#F59E0B' },
-  ];
+  const displayVehicleData = vehicleChartData;
 
   return (
     <div className="space-y-8">
@@ -94,13 +67,13 @@ export const AdminDashboardPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
-            EXECUTIVE CONTROL PANEL
+            Admin overview
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-            System Architecture & Operations Analytics
+            Operations dashboard
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real-time telemetry across facilities, bay utilization, revenue, and active reservations
+            Facilities, bay utilisation, revenue and reservations at a glance
           </p>
         </div>
 
@@ -124,58 +97,58 @@ export const AdminDashboardPage = () => {
 
       {/* 6 Metric KPI Cards (Inspired by the Reference Poster Admin Dashboard) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] font-bold uppercase">Locations</span>
+            <span className="text-[11px] font-bold uppercase">Locations</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{stats.totalLocations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Active facilities</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Parking facilities</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] font-bold uppercase">Total Bays</span>
+            <span className="text-[11px] font-bold uppercase">Total Bays</span>
             <Grid className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{stats.totalSlots}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Physical parking slots</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Physical parking slots</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-emerald-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Available</span>
+            <span className="text-[11px] font-bold uppercase">Available</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-emerald-600">{stats.availableSlots}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Unoccupied bays</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Free right now</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-blue-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Active Passes</span>
+            <span className="text-[11px] font-bold uppercase">Confirmed bookings</span>
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-700">{stats.activeReservations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Currently confirmed</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Paid, not yet used</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-indigo-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Total Revenue</span>
+            <span className="text-[11px] font-bold uppercase">Total Revenue</span>
             <CreditCard className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">₹{stats.totalRevenue}</div>
-          <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">+14% vs last week</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">From completed payments</div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-amber-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Occupancy</span>
+            <span className="text-[11px] font-bold uppercase">Occupancy</span>
             <Percent className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl font-black text-amber-600">{stats.occupancyPercentage}%</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Utilization rate</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Utilization rate</div>
         </div>
       </div>
 
@@ -183,51 +156,45 @@ export const AdminDashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Revenue & Booking Trends Area Chart (8 Cols) */}
-        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-base text-slate-900">Booking & Revenue Trends</h3>
-              <p className="text-xs text-slate-400">Past 7 days turnover and booking traffic</p>
+              <h2 className="font-bold text-base text-slate-900">Booking &amp; revenue trends</h2>
+              <p className="text-xs text-slate-400">Revenue and new bookings over the past 7 days</p>
             </div>
-            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700">
-              Daily Aggregation
-            </span>
+
           </div>
 
-          <div className="h-72 w-full pt-4">
+          <div className="h-72 w-full pt-4 relative">
+            {!(stats.revenueTrend || []).some((d) => Number(d.revenue) > 0 || Number(d.bookings) > 0) && (
+              <p className="absolute inset-0 z-10 flex items-center justify-center text-xs text-slate-500">No bookings in the last 7 days yet.</p>
+            )}
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.revenueTrend || []}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
+              <BarChart data={stats.revenueTrend || []} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: '12px',
-                    border: 'none',
-                    color: '#fff',
-                    fontSize: '12px',
-                  }}
-                  formatter={(value, name) => [name === 'revenue' ? `₹${value}` : value, name === 'revenue' ? 'Revenue' : 'Bookings']}
+                  cursor={{ fill: 'rgba(37,99,235,0.06)' }}
+                  contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px' }}
+                  formatter={(value, name) => (name === 'revenue' ? [`₹${value}`, 'Revenue'] : [value, 'Bookings'])}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
+                <Bar dataKey="revenue" fill="#2563EB" radius={[8, 8, 0, 0]} maxBarSize={44} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Vehicle Classification Donut Chart (4 Cols) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-base text-slate-900">Vehicle Type Breakdown</h3>
             <p className="text-xs text-slate-400">Distribution across user reservations</p>
           </div>
 
+          {displayVehicleData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-xs text-slate-500">No bookings yet.</div>
+          ) : (
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -256,6 +223,7 @@ export const AdminDashboardPage = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-100">
             {displayVehicleData.map((item) => (
@@ -273,13 +241,14 @@ export const AdminDashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Top Locations Table (5 Cols) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base text-slate-900">Top Facilities</h3>
             <Link to="/admin/locations" className="text-xs font-bold text-blue-600 hover:text-blue-700">View All</Link>
           </div>
 
           <div className="space-y-3 pt-1">
+            {stats.topLocations?.length === 0 && <p className="text-xs text-slate-500">No bookings yet.</p>}
             {stats.topLocations?.map((loc, idx) => (
               <div key={loc.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -288,13 +257,12 @@ export const AdminDashboardPage = () => {
                   </span>
                   <div>
                     <h4 className="font-bold text-xs text-slate-800 line-clamp-1">{loc.name}</h4>
-                    <span className="text-[10px] text-slate-400">{loc.city}</span>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <strong className="text-xs font-black text-slate-900">₹{loc.revenue}</strong>
-                  <div className="text-[10px] text-slate-500">{loc.bookingsCount} bookings</div>
+                  <div className="text-[11px] text-slate-500">{loc.bookingsCount} bookings</div>
                 </div>
               </div>
             ))}
@@ -302,7 +270,7 @@ export const AdminDashboardPage = () => {
         </div>
 
         {/* Recent Bookings (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-base text-slate-900">Live Reservations</h3>
@@ -328,11 +296,11 @@ export const AdminDashboardPage = () => {
                     <td className="py-3 px-3 font-mono font-bold text-blue-600">{b.bookingReference}</td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-900">{b.userName}</div>
-                      <div className="text-[10px] text-slate-400">{b.userPhone || b.userEmail}</div>
+                      <div className="text-[11px] text-slate-400">{b.userPhone || b.userEmail}</div>
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-900 line-clamp-1">{b.locationName}</div>
-                      <div className="text-[10px] font-mono text-slate-500">Bay {b.slotNumber} • {b.vehicleNumber}</div>
+                      <div className="text-[11px] font-mono text-slate-500">Bay {b.slotNumber} • {b.vehicleNumber}</div>
                     </td>
                     <td className="py-3 px-3 font-black text-slate-900">₹{b.totalAmount}</td>
                     <td className="py-3 px-3">

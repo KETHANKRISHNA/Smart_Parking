@@ -1,16 +1,16 @@
-# React + Vite
+# SmartPark front end
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite 8 + Tailwind 3 single-page app for the SmartPark Spring Boot API. See the [root README](../README.md) for the whole system.
 
-Currently, two official plugins are available:
+```bash
+npm install
+npm run dev      # http://localhost:5173, /api is proxied to http://localhost:8080 (override with BACKEND_URL)
+npm run lint     # oxlint
+npm test         # Vitest
+npm run build    # production bundle in dist/
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+* `src/services/api.js`: axios client. Same-origin `/api/v1`, attaches the access token, refreshes it once on a 401, and signs the user out if that fails.
+* `src/context`: `AuthContext` (session), `NotificationContext` (30 s polling while signed in), `ToastContext` (toasts and confirm dialogs).
+* `src/routes`: lazy-loaded pages and role guards. The guards only shape the UI; the API enforces every permission.
+* `vercel.json` deploys this folder to Vercel and proxies `/api` to the hosted API (edit the destination URL first).

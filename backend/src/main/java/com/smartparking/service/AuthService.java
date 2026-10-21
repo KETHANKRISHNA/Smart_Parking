@@ -1,5 +1,6 @@
 package com.smartparking.service;
 
+import com.smartparking.dto.admin.AdminCreateUserRequest;
 import com.smartparking.dto.auth.*;
 import com.smartparking.entity.User;
 import com.smartparking.enums.Role;
@@ -9,9 +10,10 @@ import com.smartparking.repository.UserRepository;
 import com.smartparking.security.CustomUserDetails;
 import com.smartparking.security.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,44 +49,82 @@ public class AuthService {
         user.setName(request.getName().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setPhone(request.getPhone());
-        user.setRole(request.getRole() != null ? request.getRole() : Role.ROLE_USER);
+        user.setPhone(blankToNull(request.getPhone()));
+        // Self-registration can only ever create a customer account
+        user.setRole(Role.ROLE_USER);
         user.setEnabled(true);
 
         User saved = userRepository.save(user);
         auditService.log("USER_REGISTER", saved.getEmail(), "User", saved.getId(), "New account created", null);
 
-        // Auto authenticate and generate tokens
-        CustomUserDetails userDetails = CustomUserDetails.build(saved);
-        String jwt = tokenProvider.generateTokenFromUserDetails(userDetails, 86400000);
-        String refresh = tokenProvider.generateRefreshToken(userDetails);
+        return issueTokens(saved);
+    }
 
-        return new AuthResponse(jwt, refresh, saved.getId(), saved.getName(), saved.getEmail(), saved.getPhone(), saved.getRole());
+    /** Admin-only: creates a staff (or customer) account with an explicit role. */
+    @Transactional
+    public UserProfileResponse createUserByAdmin(AdminCreateUserRequest request, String adminEmail) {
+        String email = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email is already registered: " + email);
+        }
+
+        User user = new User();
+        user.setName(request.getName().trim());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPhone(blankToNull(request.getPhone()));
+        user.setRole(request.getRole());
+        user.setEnabled(true);
+
+        User saved = userRepository.save(user);
+        auditService.log("USER_CREATED_BY_ADMIN", adminEmail, "User", saved.getId(),
+                "Created " + saved.getEmail() + " with role " + saved.getRole(), null);
+
+        return toProfile(saved);
     }
 
     @Transactional(readOnly = true)
+    public AuthResponse refresh(String refreshToken) {
+        if (!tokenProvider.validateRefreshToken(refreshToken)) {
+            throw new BadCredentialsException("Invalid or expired refresh token");
+        }
+        User user = userRepository.findByEmail(tokenProvider.getEmailFromToken(refreshToken))
+                .orElseThrow(() -> new BadCredentialsException("Invalid or expired refresh token"));
+        if (!user.isEnabled()) {
+            throw new DisabledException("Account is disabled");
+        }
+        return issueTokens(user);
+    }
+
+    private AuthResponse issueTokens(User user) {
+        CustomUserDetails details = CustomUserDetails.build(user);
+        return new AuthResponse(
+                tokenProvider.generateAccessToken(details),
+                tokenProvider.generateRefreshToken(details),
+                user.getId(), user.getName(), user.getEmail(), user.getPhone(), user.getRole());
+    }
+
+    private UserProfileResponse toProfile(User u) {
+        return new UserProfileResponse(u.getId(), u.getName(), u.getEmail(), u.getPhone(), u.getRole(), u.isEnabled(), u.getCreatedAt());
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail().trim().toLowerCase(), request.getPassword())
         );
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String jwt = tokenProvider.generateToken(authentication);
-        String refresh = tokenProvider.generateRefreshToken(userDetails);
+        auditService.log("USER_LOGIN", user.getEmail(), "User", user.getId(), "Login successful", null);
 
-        auditService.log("USER_LOGIN", userDetails.getEmail(), "User", userDetails.getId(), "Login successful", null);
-
-        return new AuthResponse(
-                jwt,
-                refresh,
-                userDetails.getId(),
-                userDetails.getName(),
-                userDetails.getEmail(),
-                null,
-                userDetails.getRole()
-        );
+        return issueTokens(user);
     }
 
     @Transactional(readOnly = true)
@@ -109,9 +149,10 @@ public class AuthService {
         if (name != null && !name.trim().isEmpty()) {
             user.setName(name.trim());
         }
-        user.setPhone(phone);
-        User saved = userRepository.save(user);
-        return new UserProfileResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getPhone(), saved.getRole(), saved.isEnabled(), saved.getCreatedAt());
+        if (phone != null) {
+            user.setPhone(blankToNull(phone));
+        }
+        return toProfile(userRepository.save(user));
     }
 
     @Transactional

@@ -1,6 +1,7 @@
 package com.smartparking.controller;
 
 import com.smartparking.dto.auth.ChangePasswordRequest;
+import com.smartparking.dto.auth.UpdateProfileRequest;
 import com.smartparking.dto.auth.UserProfileResponse;
 import com.smartparking.dto.common.ApiResponse;
 import com.smartparking.security.CustomUserDetails;
@@ -11,8 +12,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -37,11 +36,11 @@ public class UserController {
     @Operation(summary = "Update user profile details")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody Map<String, String> body) {
+            @Valid @RequestBody UpdateProfileRequest body) {
         UserProfileResponse profile = authService.updateProfile(
                 userDetails.getId(),
-                body.get("name"),
-                body.get("phone")
+                body.getName(),
+                body.getPhone()
         );
         return ResponseEntity.ok(ApiResponse.ok("Profile updated successfully", profile));
     }

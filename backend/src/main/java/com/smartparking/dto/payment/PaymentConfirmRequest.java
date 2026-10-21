@@ -1,24 +1,22 @@
 package com.smartparking.dto.payment;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class PaymentConfirmRequest {
 
     @NotBlank(message = "Transaction ID is required")
     private String transactionId;
 
-    private boolean simulateSuccess = true;
+    /** Card number, UPI id or bank code entered by the payer; forwarded to the gateway, never stored. */
+    @Size(max = 60, message = "Payment instrument is too long")
+    private String instrument;
 
     public PaymentConfirmRequest() {}
-
-    public PaymentConfirmRequest(String transactionId, boolean simulateSuccess) {
-        this.transactionId = transactionId;
-        this.simulateSuccess = simulateSuccess;
-    }
 
     public String getTransactionId() { return transactionId; }
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
 
-    public boolean isSimulateSuccess() { return simulateSuccess; }
-    public void setSimulateSuccess(boolean simulateSuccess) { this.simulateSuccess = simulateSuccess; }
+    public String getInstrument() { return instrument; }
+    public void setInstrument(String instrument) { this.instrument = instrument; }
 }
