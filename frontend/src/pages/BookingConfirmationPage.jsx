@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, CreditCard, AlertCircle, ChevronLeft } from 'lucide-react';
 import api from '../services/api';
 import { pendingBooking } from '../utils/pendingBooking';
+import { BookingStepper } from '../components/common/BookingStepper';
 import { formatDateTime, formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const BookingConfirmationPage = () => {
+  usePageTitle('Review booking');
   const navigate = useNavigate();
   const [bookingData, setBookingData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,8 @@ export const BookingConfirmationPage = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10 sm:py-14 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12 space-y-6">
+      <BookingStepper current={2} />
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -83,24 +87,24 @@ export const BookingConfirmationPage = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Bay</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Bay</span>
               <strong className="text-lg font-black text-blue-700 font-mono">{bookingData.slotNumber}</strong>
-              <div className="text-[10px] text-slate-500 capitalize">{bookingData.floorLevel}</div>
+              <div className="text-[11px] text-slate-500 capitalize">{bookingData.floorLevel}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Vehicle</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Vehicle</span>
               <strong className="text-base font-bold text-slate-800 uppercase font-mono">{bookingData.vehicleNumber}</strong>
-              <div className="text-[10px] text-slate-500 capitalize">{bookingData.vehicleType?.toLowerCase()}</div>
+              <div className="text-[11px] text-slate-500 capitalize">{bookingData.vehicleType?.toLowerCase()}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Arrive</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Arrive</span>
               <strong className="text-sm font-bold text-slate-800">{formatTime(bookingData.startTime)}</strong>
-              <div className="text-[10px] text-slate-500">{formatDateTime(bookingData.startTime).split(',')[0]}</div>
+              <div className="text-[11px] text-slate-500">{formatDateTime(bookingData.startTime).split(',')[0]}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Leave by</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Leave by</span>
               <strong className="text-sm font-bold text-slate-800">{formatTime(bookingData.endTime)}</strong>
-              <div className="text-[10px] text-slate-500">{bookingData.totalHours} hr stay</div>
+              <div className="text-[11px] text-slate-500">{bookingData.totalHours} hr stay</div>
             </div>
           </div>
 

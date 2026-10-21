@@ -2,8 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, MapPin, ArrowRight, Map as MapIcon, List as ListIcon, AlertCircle, Locate } from 'lucide-react';
+import { Search, MapPin, ArrowRight, Map as MapIcon, List as ListIcon, AlertCircle, Locate, SlidersHorizontal } from 'lucide-react';
 import api from '../services/api';
+import { FacilityImage } from '../components/common/FacilityImage';
+import { EmptyState } from '../components/common/EmptyState';
+import { categoryOf } from '../utils/categories';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // A DivIcon avoids Leaflet's default marker images, which Vite cannot resolve
 const markerIcon = new L.DivIcon({
@@ -38,6 +42,7 @@ const MapRecenter = ({ center }) => {
 const hasCoordinates = (loc) => Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude);
 
 export const SearchParkingPage = () => {
+  usePageTitle('Find parking');
   // The URL is the single source of truth for search filters, so shared links and footer links just work
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('query') || '';
@@ -49,7 +54,10 @@ export const SearchParkingPage = () => {
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState('split');
+  // The map only earns its space on wide screens; phones start with the list
+  const [viewMode, setViewMode] = useState(() => (window.matchMedia?.('(min-width: 1024px)').matches ? 'split' : 'list'));
+  const [sortBy, setSortBy] = useState('free');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [maxPrice, setMaxPrice] = useState(PRICE_CAP);
   const [availableOnly, setAvailableOnly] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -92,13 +100,19 @@ export const SearchParkingPage = () => {
     () =>
       locations
         .filter((l) => (!availableOnly || l.availableSlots > 0) && (maxPrice >= PRICE_CAP || Number(l.hourlyRate) <= maxPrice))
-        .sort((a, b) => b.availableSlots - a.availableSlots || a.name.localeCompare(b.name)),
-    [locations, availableOnly, maxPrice]
+        .sort((a, b) => {
+          if (sortBy === 'price') return Number(a.hourlyRate) - Number(b.hourlyRate) || a.name.localeCompare(b.name);
+          if (sortBy === 'name') return a.name.localeCompare(b.name);
+          return b.availableSlots - a.availableSlots || a.name.localeCompare(b.name);
+        }),
+    [locations, availableOnly, maxPrice, sortBy]
   );
 
   const selected = visible.find((l) => l.id === selectedId) || null;
   const mappable = visible.filter(hasCoordinates);
   const mapCenter = selected && hasCoordinates(selected) ? [selected.latitude, selected.longitude] : mappable[0] ? [mappable[0].latitude, mappable[0].longitude] : DEFAULT_CENTER;
+
+  const activeFilters = [city, category, availableOnly, maxPrice < PRICE_CAP].filter(Boolean).length;
 
   const resetFilters = () => {
     setSearchParams({}, { replace: true });
@@ -125,7 +139,7 @@ export const SearchParkingPage = () => {
             />
           </div>
 
-          <div className="w-full md:w-48">
+          <div className={`${filtersOpen ? 'block' : 'hidden'} md:block w-full md:w-48`}>
             <label htmlFor="search-city" className="sr-only">City</label>
             <select id="search-city" value={city} onChange={(e) => setParam('city', e.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none cursor-pointer">
               <option value="">All cities</option>
@@ -133,7 +147,11 @@ export const SearchParkingPage = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 self-end md:self-auto" role="group" aria-label="Results layout">
+          <div className="flex w-full md:w-auto items-center justify-between gap-2 md:self-auto">
+          <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="filter-panel" className="md:hidden px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5">
+            <SlidersHorizontal className="w-4 h-4" aria-hidden="true" /> Filters{activeFilters > 0 && <span className="ml-0.5 px-1.5 rounded-full bg-blue-600 text-white text-[11px]">{activeFilters}</span>}
+          </button>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 ml-auto" role="group" aria-label="Results layout">
             <button type="button" aria-pressed={viewMode === 'split'} onClick={() => setViewMode('split')} className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${viewMode === 'split' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
               <MapIcon className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">Map &amp; list</span>
             </button>
@@ -141,8 +159,10 @@ export const SearchParkingPage = () => {
               <ListIcon className="w-4 h-4" aria-hidden="true" /><span className="hidden sm:inline">List only</span>
             </button>
           </div>
+          </div>
         </div>
 
+        <div id="filter-panel" className={`${filtersOpen ? 'block' : 'hidden'} md:block space-y-4`}>
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs" role="group" aria-label="Category">
           <span className="text-slate-500 font-semibold shrink-0">Category:</span>
           {CATEGORIES.map(([value, label]) => (
@@ -163,13 +183,21 @@ export const SearchParkingPage = () => {
             <span className="font-bold text-slate-900 w-20">{maxPrice >= PRICE_CAP ? 'Any price' : `₹${maxPrice}/hr`}</span>
           </div>
         </div>
+        </div>
       </div>
 
       <div className={`grid gap-6 ${viewMode === 'split' ? 'grid-cols-1 lg:grid-cols-12' : 'grid-cols-1'}`}>
         <section className={`${viewMode === 'split' ? 'lg:col-span-7' : 'w-full'} space-y-4`} aria-label="Search results">
           <div className="flex items-center justify-between text-xs text-slate-500 px-1" aria-live="polite">
             <span>Found <strong className="text-slate-800">{visible.length}</strong> parking {visible.length === 1 ? 'facility' : 'facilities'}</span>
-            <span>Most free bays first</span>
+            <span className="flex items-center gap-2">
+              <label htmlFor="sort-by" className="font-semibold">Sort by</label>
+              <select id="sort-by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                <option value="free">Most free bays</option>
+                <option value="price">Lowest price</option>
+                <option value="name">Name (A–Z)</option>
+              </select>
+            </span>
           </div>
 
           {error && (
@@ -183,22 +211,18 @@ export const SearchParkingPage = () => {
               {[1, 2, 3].map((i) => <div key={i} className="h-44 rounded-2xl bg-white border border-slate-200 p-4 animate-pulse" />)}
             </div>
           ) : visible.length === 0 && !error ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
-              <MapPin className="w-10 h-10 text-slate-300 mx-auto mb-2" aria-hidden="true" />
-              <h2 className="text-base font-bold text-slate-700">No parking facilities match your search</h2>
-              <p className="text-xs text-slate-500 mt-1">Try clearing the filters or searching another city.</p>
-              <button type="button" onClick={resetFilters} className="mt-4 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100">Reset all filters</button>
-            </div>
+            <EmptyState icon={MapPin} title="No parking facilities match your search" action={<button type="button" onClick={resetFilters} className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100">Reset all filters</button>}>
+              Try clearing the filters or searching another city.
+            </EmptyState>
           ) : (
             <ul className="space-y-4">
               {visible.map((loc) => {
                 const isSelected = selectedId === loc.id;
                 return (
                   <li key={loc.id} className={`bg-white rounded-2xl border p-4 sm:p-5 transition-all flex flex-col sm:flex-row gap-4 ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md' : 'border-slate-200/90 hover:border-blue-300 hover:shadow-md'}`}>
-                    <div className="w-full sm:w-44 h-36 rounded-xl overflow-hidden shrink-0 relative bg-gradient-to-br from-blue-100 to-slate-200">
-                      {loc.imageUrl && <img src={loc.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-white/95 text-slate-800 shadow-sm">{loc.category.replaceAll('_', ' ')}</span>
-                    </div>
+                    <FacilityImage src={loc.imageUrl} category={loc.category} className="w-full sm:w-44 h-40 sm:h-36 rounded-xl shrink-0">
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[11px] font-bold bg-white/95 text-slate-800 shadow-sm">{categoryOf(loc.category).label}</span>
+                    </FacilityImage>
 
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
@@ -251,7 +275,7 @@ export const SearchParkingPage = () => {
                       <p className="text-[11px] text-slate-500 mt-0.5">{loc.address}</p>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
                         <span className="font-extrabold text-blue-700 text-xs">₹{loc.hourlyRate}/hr</span>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{loc.availableSlots} free</span>
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{loc.availableSlots} free</span>
                       </div>
                       <Link to={`/parking/${loc.id}`} className="mt-2 block w-full text-center py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-lg">Book this facility</Link>
                     </div>

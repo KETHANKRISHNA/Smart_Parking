@@ -6,10 +6,12 @@ import { useToast } from '../context/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { FormField } from '../components/common/FormField';
 import { formatDateTime, formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const REASONS = ['Change of plans', 'Found alternative parking', 'Booking date/time mistake', 'Vehicle issue'];
 
 export const BookingTicketPage = () => {
+  usePageTitle('Your ticket');
   const { id } = useParams();
   const toast = useToast();
   const [booking, setBooking] = useState(null);
@@ -104,7 +106,7 @@ export const BookingTicketPage = () => {
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden print:border-none print:shadow-none">
         <div className="bg-slate-900 text-white p-6 sm:p-8 flex items-start justify-between">
           <div>
-            <span className="text-[10px] font-bold tracking-widest uppercase bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded">Digital parking pass</span>
+            <span className="text-[11px] font-bold tracking-widest uppercase bg-blue-500/20 text-blue-300 px-2.5 py-0.5 rounded">Digital parking pass</span>
             <h1 className="text-xl sm:text-2xl font-black mt-2 tracking-tight">{booking.locationName}</h1>
             <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
               <MapPin className="w-3 h-3 text-blue-400 shrink-0" aria-hidden="true" />
@@ -148,24 +150,24 @@ export const BookingTicketPage = () => {
         <div className="p-6 sm:p-8 space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Bay</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Bay</span>
               <strong className="text-xl font-black text-blue-700 font-mono">{booking.slotNumber}</strong>
-              <div className="text-[10px] text-slate-500 capitalize">{booking.floorLevel}</div>
+              <div className="text-[11px] text-slate-500 capitalize">{booking.floorLevel}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Vehicle</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Vehicle</span>
               <strong className="text-sm font-bold text-slate-800 uppercase font-mono">{booking.vehicleNumber}</strong>
-              <div className="text-[10px] text-slate-500 capitalize">{booking.vehicleType?.toLowerCase()}</div>
+              <div className="text-[11px] text-slate-500 capitalize">{booking.vehicleType?.toLowerCase()}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">Start</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">Start</span>
               <strong className="text-xs font-bold text-slate-800">{formatTime(booking.startTime)}</strong>
-              <div className="text-[10px] text-slate-500">{formatDateTime(booking.startTime).split(',')[0]}</div>
+              <div className="text-[11px] text-slate-500">{formatDateTime(booking.startTime).split(',')[0]}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] text-slate-500 font-semibold block uppercase">End</span>
+              <span className="text-[11px] text-slate-500 font-semibold block uppercase">End</span>
               <strong className="text-xs font-bold text-slate-800">{formatTime(booking.endTime)}</strong>
-              <div className="text-[10px] text-slate-500">{booking.totalHours} hrs · ₹{booking.totalAmount}</div>
+              <div className="text-[11px] text-slate-500">{booking.totalHours} hrs · ₹{booking.totalAmount}</div>
             </div>
           </div>
 
@@ -175,12 +177,12 @@ export const BookingTicketPage = () => {
               <div>
                 <span className="text-slate-500 block text-[11px]">Entry scan</span>
                 <strong className="text-slate-800">{booking.entryTime ? formatDateTime(booking.entryTime) : 'Awaiting arrival'}</strong>
-                {booking.entryGate && <div className="text-[10px] text-slate-500">{booking.entryGate}</div>}
+                {booking.entryGate && <div className="text-[11px] text-slate-500">{booking.entryGate}</div>}
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Exit scan</span>
                 <strong className="text-slate-800">{booking.exitTime ? formatDateTime(booking.exitTime) : 'Not exited'}</strong>
-                {booking.exitGate && <div className="text-[10px] text-slate-500">{booking.exitGate}</div>}
+                {booking.exitGate && <div className="text-[11px] text-slate-500">{booking.exitGate}</div>}
               </div>
             </div>
           </div>

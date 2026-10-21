@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Modal } from '../components/common/Modal';
 import { formatDateTime, formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const STATUSES = [
   ['ALL', 'All statuses'],
@@ -16,6 +17,7 @@ const STATUSES = [
 ];
 
 export const AdminBookingsPage = () => {
+  usePageTitle('Bookings');
   const toast = useToast();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,10 +115,10 @@ export const AdminBookingsPage = () => {
                 {filtered.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50/80">
                     <td className="py-3.5 px-4 font-mono font-bold text-blue-600">{b.bookingReference}</td>
-                    <td className="py-3.5 px-4"><div className="font-bold text-slate-900">{b.userName}</div><div className="text-[10px] text-slate-500">{b.userEmail}</div></td>
-                    <td className="py-3.5 px-4"><div className="font-bold text-slate-900">{b.locationName}</div><div className="text-[10px] text-slate-500">{b.locationCity}</div></td>
-                    <td className="py-3.5 px-4"><span className="font-mono font-bold text-slate-800">Bay {b.slotNumber}</span><div className="text-[10px] font-mono text-slate-500 uppercase">{b.vehicleNumber}</div></td>
-                    <td className="py-3.5 px-4 text-slate-600"><div>{formatDateTime(b.startTime).split(',').slice(0, 2).join(',')}</div><div className="text-[10px] text-slate-500">{formatTime(b.startTime)} – {formatTime(b.endTime)}</div></td>
+                    <td className="py-3.5 px-4"><div className="font-bold text-slate-900">{b.userName}</div><div className="text-[11px] text-slate-500">{b.userEmail}</div></td>
+                    <td className="py-3.5 px-4"><div className="font-bold text-slate-900">{b.locationName}</div><div className="text-[11px] text-slate-500">{b.locationCity}</div></td>
+                    <td className="py-3.5 px-4"><span className="font-mono font-bold text-slate-800">Bay {b.slotNumber}</span><div className="text-[11px] font-mono text-slate-500 uppercase">{b.vehicleNumber}</div></td>
+                    <td className="py-3.5 px-4 text-slate-600"><div>{formatDateTime(b.startTime).split(',').slice(0, 2).join(',')}</div><div className="text-[11px] text-slate-500">{formatTime(b.startTime)} – {formatTime(b.endTime)}</div></td>
                     <td className="py-3.5 px-4 font-black text-slate-900">₹{b.totalAmount}</td>
                     <td className="py-3.5 px-4"><StatusBadge status={b.status} /></td>
                     <td className="py-3.5 px-4 text-right"><button type="button" onClick={() => setSelected(b)} className="px-2.5 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg">Inspect</button></td>

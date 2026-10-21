@@ -19,7 +19,7 @@ Find a parking facility, pick a bay, pay, and walk in with a QR ticket. Facility
 | API | Spring Boot 3.3.4, Spring Web, Spring Security (stateless JWT access + refresh tokens), Spring Data JPA / Hibernate, Bean Validation, springdoc OpenAPI, ZXing (QR), Actuator (health) |
 | Database | PostgreSQL in production with **Flyway** migrations · H2 (file) for local development · H2 in-memory for tests |
 | Front end | React 19, Vite 8, React Router 7, Tailwind CSS 3, axios, Recharts, Leaflet, html5-qrcode |
-| Quality | JUnit 5 + Mockito + `@SpringBootTest` (29 tests, including a concurrent double-booking test) · Vitest + Testing Library (22 tests) · oxlint · GitHub Actions CI |
+| Quality | JUnit 5 + Mockito + `@SpringBootTest` (29 tests, including a concurrent double-booking test) · Vitest + Testing Library (29 tests) · oxlint · GitHub Actions CI |
 | Deployment | Multi-stage `Dockerfile` · `render.yaml` (API + Postgres on Render) · `frontend/vercel.json` (Vercel) |
 
 ## How it fits together
@@ -73,7 +73,7 @@ These exist only when demo data is on. They are public knowledge, so never enabl
 
 ```bash
 cd backend  && ./mvnw verify            # 29 tests: unit, security matrix, payment/gate flow, concurrency, Flyway
-cd frontend && npm run lint && npm test # 22 tests
+cd frontend && npm run lint && npm test # 29 tests
 ```
 
 The integration tests (`SmartParkingFlowIT`) run the real Spring context. They check, among other things, that registering with `"role":"ROLE_ADMIN"` still yields a customer, that one of eight simultaneous bookings of the same bay wins, that a manager cannot scan another facility's ticket, and that a disabled user's token stops working immediately.

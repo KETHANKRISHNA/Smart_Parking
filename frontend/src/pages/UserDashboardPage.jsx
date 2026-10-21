@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { Calendar, QrCode, CreditCard, Search, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const UserDashboardPage = () => {
+  usePageTitle('Dashboard');
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState('');
@@ -120,7 +122,7 @@ export const UserDashboardPage = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white">CONFIRMED</span>
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-600 text-white">CONFIRMED</span>
                 <span className="text-xs font-mono font-bold text-emerald-950">{activeBooking.bookingReference}</span>
               </div>
               <h3 className="font-extrabold text-lg text-slate-900 mt-1">{activeBooking.locationName}</h3>
@@ -183,15 +185,15 @@ export const UserDashboardPage = () => {
                     </td>
                     <td className="py-3.5 px-3">
                       <div className="font-semibold text-slate-900">{b.locationName}</div>
-                      <div className="text-[10px] text-slate-500">{b.locationCity}</div>
+                      <div className="text-[11px] text-slate-500">{b.locationCity}</div>
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="font-mono font-bold text-slate-900">Bay {b.slotNumber}</span>
-                      <div className="text-[10px] text-slate-500 uppercase font-mono">{b.vehicleNumber}</div>
+                      <div className="text-[11px] text-slate-500 uppercase font-mono">{b.vehicleNumber}</div>
                     </td>
                     <td className="py-3.5 px-3 text-slate-600">
                       <div>{new Date(b.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' })}</div>
-                      <div className="text-[10px] text-slate-500">{new Date(b.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="text-[11px] text-slate-500">{new Date(b.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
                     <td className="py-3.5 px-3 font-black text-slate-900">
                       ₹{b.totalAmount}

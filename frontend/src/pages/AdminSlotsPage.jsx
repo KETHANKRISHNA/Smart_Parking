@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/common/Modal';
 import { FormField } from '../components/common/FormField';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const EMPTY_SLOT = { slotNumber: '', slotType: 'CAR', floorLevel: 'Ground Floor', hasEvCharger: false, customHourlyRate: '' };
 
@@ -15,6 +16,7 @@ const LOOK = {
 };
 
 export const AdminSlotsPage = () => {
+  usePageTitle('Bay inventory');
   const toast = useToast();
   const [locations, setLocations] = useState([]);
   const [locationId, setLocationId] = useState('');
@@ -144,12 +146,12 @@ export const AdminSlotsPage = () => {
             return (
               <div key={slot.id} className={`p-3.5 rounded-2xl border-2 flex flex-col justify-between h-36 ${LOOK[slot.status] || LOOK.AVAILABLE}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">{slot.floorLevel}</span>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{slot.floorLevel}</span>
                   {slot.hasEvCharger && <span className="p-0.5 rounded bg-emerald-100 text-emerald-800" title="EV charger"><Zap className="w-3 h-3 fill-emerald-600" aria-label="EV charger" /></span>}
                 </div>
                 <div className="text-center my-1">
                   <div className="text-xl font-black font-mono text-slate-900">{slot.slotNumber}</div>
-                  <span className="text-[10px] font-semibold text-slate-500 capitalize">{slot.slotType.toLowerCase()} · ₹{slot.effectiveHourlyRate}/h</span>
+                  <span className="text-[11px] font-semibold text-slate-500 capitalize">{slot.slotType.toLowerCase()} · ₹{slot.effectiveHourlyRate}/h</span>
                 </div>
                 <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
                   <button
@@ -157,7 +159,7 @@ export const AdminSlotsPage = () => {
                     onClick={() => toggleStatus(slot)}
                     disabled={!switchable}
                     title={switchable ? 'Toggle in service / out of service' : 'Controlled by bookings and gate scans'}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded transition-colors disabled:cursor-not-allowed ${slot.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded transition-colors disabled:cursor-not-allowed ${slot.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
                   >
                     {slot.status === 'AVAILABLE' ? 'In service' : slot.status === 'OUT_OF_SERVICE' ? 'Offline' : slot.status === 'OCCUPIED' ? 'Occupied' : 'Reserved'}
                   </button>

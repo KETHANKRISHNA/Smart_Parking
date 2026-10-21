@@ -5,11 +5,14 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useManagerFacility } from '../hooks/useManagerFacility';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 import { BayTile } from '../components/common/BayTile';
 import { FacilityPicker } from '../components/common/FacilityPicker';
 import { formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const ManagerDashboardPage = () => {
+  usePageTitle('Manager overview');
   const toast = useToast();
   const { facilities, facility, locationId, setLocationId, loading: facilitiesLoading, error: facilitiesError } = useManagerFacility();
   const [slots, setSlots] = useState([]);
@@ -59,13 +62,7 @@ export const ManagerDashboardPage = () => {
     }
   };
 
-  if (facilitiesLoading || (loading && locationId)) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label="Loading facility">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (facilitiesLoading || (loading && locationId)) return <DashboardSkeleton />;
 
   if (facilitiesError || !facility) {
     return (
@@ -87,7 +84,7 @@ export const ManagerDashboardPage = () => {
     <div className="space-y-8">
       <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <span className="text-[10px] font-bold tracking-widest uppercase bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full">Facility manager</span>
+          <span className="text-[11px] font-bold tracking-widest uppercase bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full">Facility manager</span>
           <h1 className="text-2xl sm:text-3xl font-extrabold mt-2 tracking-tight">{facility.name}</h1>
           <p className="text-xs text-purple-200 mt-1 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-purple-300" aria-hidden="true" />
@@ -110,24 +107,24 @@ export const ManagerDashboardPage = () => {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-bold uppercase text-slate-500 block">Total capacity</span>
+          <span className="text-[11px] font-bold uppercase text-slate-500 block">Total capacity</span>
           <strong className="text-2xl font-black text-slate-900">{slots.length} bays</strong>
-          <div className="text-[10px] text-slate-500 mt-1">{outOfService} out of service</div>
+          <div className="text-[11px] text-slate-500 mt-1">{outOfService} out of service</div>
         </div>
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-bold uppercase text-emerald-700 block">Available now</span>
+          <span className="text-[11px] font-bold uppercase text-emerald-700 block">Available now</span>
           <strong className="text-2xl font-black text-emerald-600">{available} bays</strong>
-          <div className="text-[10px] text-slate-500 mt-1">Free and ready</div>
+          <div className="text-[11px] text-slate-500 mt-1">Free and ready</div>
         </div>
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-bold uppercase text-rose-700 block">Vehicles inside</span>
+          <span className="text-[11px] font-bold uppercase text-rose-700 block">Vehicles inside</span>
           <strong className="text-2xl font-black text-rose-600">{occupied}</strong>
-          <div className="text-[10px] text-slate-500 mt-1">Checked in at the gate</div>
+          <div className="text-[11px] text-slate-500 mt-1">Checked in at the gate</div>
         </div>
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-bold uppercase text-purple-700 block">Live occupancy</span>
+          <span className="text-[11px] font-bold uppercase text-purple-700 block">Live occupancy</span>
           <strong className="text-2xl font-black text-purple-700">{occupancy}%</strong>
-          <div className="text-[10px] text-slate-500 mt-1">Of bays in service</div>
+          <div className="text-[11px] text-slate-500 mt-1">Of bays in service</div>
         </div>
       </div>
 
@@ -176,7 +173,7 @@ export const ManagerDashboardPage = () => {
                     <td className="py-3 px-3 font-semibold text-slate-900">{b.userName}</td>
                     <td className="py-3 px-3">
                       <span className="font-mono font-bold text-slate-900">Bay {b.slotNumber}</span>
-                      <div className="text-[10px] font-mono text-slate-500 uppercase">{b.vehicleNumber}</div>
+                      <div className="text-[11px] font-mono text-slate-500 uppercase">{b.vehicleNumber}</div>
                     </td>
                     <td className="py-3 px-3 text-slate-600">{formatTime(b.startTime)} – {formatTime(b.endTime)}</td>
                     <td className="py-3 px-3">

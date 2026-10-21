@@ -1,57 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Fuel, ShieldCheck, TrendingUp, Sparkles } from 'lucide-react';
 
 export const Footer = () => {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800">
-      {/* System Benefits Banner (Inspired by Poster System Benefits) */}
-      <div className="border-b border-slate-800/80 bg-slate-950/40">
-        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
-            <div className="flex flex-col items-center p-3 rounded-xl bg-slate-800/40 border border-slate-800">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2">
-                <Clock className="w-5 h-5" />
-              </div>
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">Saves Time</h5>
-              <p className="text-[11px] text-slate-400 mt-0.5">Instant booking & navigation</p>
-            </div>
-
-            <div className="flex flex-col items-center p-3 rounded-xl bg-slate-800/40 border border-slate-800">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2">
-                <Fuel className="w-5 h-5" />
-              </div>
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">Saves Fuel</h5>
-              <p className="text-[11px] text-slate-400 mt-0.5">No circling busy parking lots</p>
-            </div>
-
-            <div className="flex flex-col items-center p-3 rounded-xl bg-slate-800/40 border border-slate-800">
-              <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-2">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">Reduces Congestion</h5>
-              <p className="text-[11px] text-slate-400 mt-0.5">Smooth automated traffic flow</p>
-            </div>
-
-            <div className="flex flex-col items-center p-3 rounded-xl bg-slate-800/40 border border-slate-800">
-              <div className="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-2">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">Better Space Utilization</h5>
-              <p className="text-[11px] text-slate-400 mt-0.5">Dynamic bay occupancy</p>
-            </div>
-
-            <div className="col-span-2 md:col-span-1 flex flex-col items-center p-3 rounded-xl bg-slate-800/40 border border-slate-800">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">Increases Revenue</h5>
-              <p className="text-[11px] text-slate-400 mt-0.5">Cashless digital turnover</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Footer Links */}
       <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

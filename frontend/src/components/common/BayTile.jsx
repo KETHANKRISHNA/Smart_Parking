@@ -19,12 +19,12 @@ export const BayTile = ({ slot, onToggle }) => {
 
   const content = (
     <>
-      <span className="flex w-full justify-between items-center text-[10px] font-bold text-slate-500">
+      <span className="flex w-full justify-between items-center text-[11px] font-bold text-slate-500">
         <span>{slot.floorLevel}</span>
         {slot.hasEvCharger && <Zap className="w-3 h-3 fill-emerald-500 text-emerald-600" aria-label="EV charger" />}
       </span>
       <span className="text-lg font-black font-mono">{slot.slotNumber}</span>
-      <span className="text-[10px] font-bold">{look.label}</span>
+      <span className="text-[11px] font-bold">{look.label}</span>
     </>
   );
 

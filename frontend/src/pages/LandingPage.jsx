@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { FacilityImage } from '../components/common/FacilityImage';
+import { categoryOf } from '../utils/categories';
 import {
   Search,
   MapPin,
@@ -24,6 +26,7 @@ export const LandingPage = () => {
   const [selectedCity, setSelectedCity] = useState('');
   const [featuredLocations, setFeaturedLocations] = useState([]);
   const [cities, setCities] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -34,6 +37,11 @@ export const LandingPage = () => {
         if (res.success && res.data) {
           setFeaturedLocations([...res.data].sort((a, b) => b.availableSlots - a.availableSlots).slice(0, 6));
           setCities([...new Set(res.data.map((l) => l.city))].sort());
+          setStats({
+            facilities: res.data.length,
+            freeBays: res.data.reduce((sum, l) => sum + (l.availableSlots || 0), 0),
+            cities: new Set(res.data.map((l) => l.city)).size,
+          });
         }
       } catch (err) {
         console.warn('Could not load featured locations:', err.message);
@@ -94,7 +102,7 @@ export const LandingPage = () => {
           </h1>
 
           <p className="mt-5 text-base sm:text-xl text-slate-300 max-w-2xl mx-auto font-medium leading-relaxed">
-            Find. Book. Park Smartly at Popular Places. Real-time slot availability, QR-based contactless gate entry, and instant cashless booking.
+            Reserve a bay before you leave home. See live availability, pay online and walk in with a QR ticket.
           </p>
 
           {/* Search Bar Widget */}
@@ -149,6 +157,21 @@ export const LandingPage = () => {
                 ))}
               </div>
             )}
+
+            {stats && (
+              <dl className="mt-10 grid grid-cols-3 max-w-2xl mx-auto gap-3 sm:gap-6 text-center">
+                {[
+                  [stats.freeBays, 'bays free right now'],
+                  [stats.facilities, 'parking facilities'],
+                  [stats.cities, stats.cities === 1 ? 'city covered' : 'cities covered'],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-2xl bg-white/5 border border-white/10 px-3 py-4 backdrop-blur-sm">
+                    <dd className="text-2xl sm:text-3xl font-extrabold text-white tabular-nums">{value}</dd>
+                    <dt className="text-[11px] sm:text-xs text-blue-200 mt-0.5">{label}</dt>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
         </div>
       </section>
@@ -183,7 +206,7 @@ export const LandingPage = () => {
                   <h3 className="font-bold text-sm text-slate-800 group-hover:text-blue-600 transition-colors">
                     {cat.name}
                   </h3>
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
                     {cat.desc}
                   </p>
                 </div>
@@ -232,28 +255,17 @@ export const LandingPage = () => {
                 className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all flex flex-col overflow-hidden group"
               >
                 {/* Image */}
-                <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-200 to-slate-300">
-                  {loc.imageUrl && (
-                    <img
-                      src={loc.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  )}
+                <FacilityImage src={loc.imageUrl} category={loc.category} className="h-44" iconClass="w-14 h-14">
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[11px] font-bold bg-white/95 text-slate-800 shadow-sm backdrop-blur-sm">
-                    {loc.category.replaceAll('_', ' ')}
+                    {categoryOf(loc.category).label}
                   </span>
-                  <span className="absolute bottom-3 left-3 text-white font-bold text-sm drop-shadow-md">
-                    {loc.city}
-                  </span>
+                  <span className="absolute bottom-3 left-3 text-white font-bold text-sm drop-shadow-md">{loc.city}</span>
                   <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-white" aria-hidden="true" />
-                    {loc.availableSlots} Available
+                    {loc.availableSlots} free
                   </div>
-                </div>
+                </FacilityImage>
 
                 {/* Content */}
                 <div className="p-5 flex-1 flex flex-col justify-between">
@@ -272,7 +284,7 @@ export const LandingPage = () => {
 
                   <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <div className="text-[11px] text-slate-400">Rate starting from</div>
+                      <div className="text-[11px] text-slate-500">Rate starting from</div>
                       <div className="text-base font-extrabold text-slate-900">
                         ₹{loc.hourlyRate} <span className="text-xs font-medium text-slate-500">/ hour</span>
                       </div>

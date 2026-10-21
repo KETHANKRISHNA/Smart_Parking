@@ -7,8 +7,10 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const ProfilePage = () => {
+  usePageTitle('My account');
   const { user, updateUser } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
@@ -120,7 +122,7 @@ export const ProfilePage = () => {
                 value={user?.email || ''}
                 className="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed"
               />
-              <span className="text-[10px] text-slate-400 mt-1 block">Email is permanently bound to authentication tokens.</span>
+              <span className="text-[11px] text-slate-400 mt-1 block">Email is permanently bound to authentication tokens.</span>
             </div>
 
             <div>

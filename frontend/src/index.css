@@ -68,3 +68,43 @@
     background: #fff !important;
   }
 }
+
+/* Keyboard users: a clear focus ring on everything interactive (mouse clicks do not show it) */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 0;
+}
+
+/* Gentle page entrance. Opacity only, and it must not leave a transform behind: a transformed ancestor
+   would turn every position:fixed descendant (sticky bars, dialogs) into page-relative instead of screen-relative. */
+@keyframes page-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-enter {
+  animation: page-enter 0.25s ease-out backwards;
+}
+
+/* Skip link for keyboard / screen-reader users */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 200;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 8px;
+}

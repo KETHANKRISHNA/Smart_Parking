@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/common/Modal';
 import { FormField } from '../components/common/FormField';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const ROLE_LABEL = { ROLE_USER: 'Customer', ROLE_PARKING_MANAGER: 'Parking manager', ROLE_ADMIN: 'Administrator' };
 const ROLE_STYLE = {
@@ -15,6 +16,7 @@ const ROLE_STYLE = {
 const EMPTY_FORM = { name: '', email: '', password: '', phone: '', role: 'ROLE_PARKING_MANAGER' };
 
 export const AdminUsersPage = () => {
+  usePageTitle('Users');
   const { user: me } = useAuth();
   const toast = useToast();
   const [users, setUsers] = useState([]);
@@ -177,18 +179,18 @@ export const AdminUsersPage = () => {
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/80">
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">{u.name}{isMe && <span className="ml-1.5 text-[10px] font-semibold text-blue-600">(you)</span>}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{u.email}</div>
+                        <div className="font-bold text-slate-900">{u.name}{isMe && <span className="ml-1.5 text-[11px] font-semibold text-blue-600">(you)</span>}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{u.email}</div>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-slate-600">{u.phone || '—'}</td>
-                      <td className="py-3.5 px-4"><span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${ROLE_STYLE[u.role]}`}>{ROLE_LABEL[u.role]}</span></td>
+                      <td className="py-3.5 px-4"><span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${ROLE_STYLE[u.role]}`}>{ROLE_LABEL[u.role]}</span></td>
                       <td className="py-3.5 px-4">
                         <button
                           type="button"
                           onClick={() => toggleStatus(u)}
                           disabled={isMe}
                           title={isMe ? 'You cannot disable your own account' : undefined}
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${u.enabled ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'}`}
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${u.enabled ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'}`}
                         >
                           {u.enabled ? 'Enabled' : 'Disabled'}
                         </button>

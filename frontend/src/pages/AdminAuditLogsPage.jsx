@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, AlertCircle } from 'lucide-react';
 import api from '../services/api';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const AdminAuditLogsPage = () => {
+  usePageTitle('Audit trail');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -5,11 +5,13 @@ import { useToast } from '../context/ToastContext';
 import { useManagerFacility } from '../hooks/useManagerFacility';
 import { BayTile } from '../components/common/BayTile';
 import { FacilityPicker } from '../components/common/FacilityPicker';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const TYPES = ['ALL', 'CAR', 'EV', 'BIKE', 'ACCESSIBLE'];
 
 /** Bay inventory for the facility the signed-in manager operates (uses /manager endpoints, not /admin). */
 export const ManagerSlotsPage = () => {
+  usePageTitle('Bay inventory');
   const toast = useToast();
   const { facilities, facility, locationId, setLocationId, loading: facilitiesLoading, error: facilitiesError } = useManagerFacility();
   const [slots, setSlots] = useState([]);

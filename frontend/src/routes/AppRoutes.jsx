@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { MainLayout } from '../layouts/MainLayout';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { ProtectedRoute } from './ProtectedRoute';
+import { ScrollToTop } from '../components/common/ScrollToTop';
 
 // Every page is loaded on demand, so heavy libraries (charts, maps, QR scanner) only download
 // when the visitor actually opens a page that needs them.
@@ -45,6 +46,7 @@ const PageLoader = () => (
 
 export const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
+    <ScrollToTop />
     <Routes>
       {/* Public pages with the main header and footer */}
       <Route element={<MainLayout />}>

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -14,8 +16,10 @@ import {
   Cell,
 } from 'recharts';
 import { Building2, Grid, CheckCircle2, CreditCard, Percent, Activity } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const AdminDashboardPage = () => {
+  usePageTitle('Admin overview');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,13 +40,7 @@ export const AdminDashboardPage = () => {
     fetchStats();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   if (error || !stats) {
     return (
@@ -101,56 +99,56 @@ export const AdminDashboardPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] font-bold uppercase">Locations</span>
+            <span className="text-[11px] font-bold uppercase">Locations</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{stats.totalLocations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Parking facilities</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Parking facilities</div>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] font-bold uppercase">Total Bays</span>
+            <span className="text-[11px] font-bold uppercase">Total Bays</span>
             <Grid className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-black text-slate-900">{stats.totalSlots}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Physical parking slots</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Physical parking slots</div>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-emerald-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Available</span>
+            <span className="text-[11px] font-bold uppercase">Available</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-emerald-600">{stats.availableSlots}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Free right now</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Free right now</div>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-blue-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Confirmed bookings</span>
+            <span className="text-[11px] font-bold uppercase">Confirmed bookings</span>
             <Activity className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-700">{stats.activeReservations}</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Paid, not yet used</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Paid, not yet used</div>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-indigo-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Total Revenue</span>
+            <span className="text-[11px] font-bold uppercase">Total Revenue</span>
             <CreditCard className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">₹{stats.totalRevenue}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">From completed payments</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">From completed payments</div>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm">
           <div className="flex items-center justify-between text-amber-600 mb-2">
-            <span className="text-[10px] font-bold uppercase">Occupancy</span>
+            <span className="text-[11px] font-bold uppercase">Occupancy</span>
             <Percent className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl font-black text-amber-600">{stats.occupancyPercentage}%</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Utilization rate</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Utilization rate</div>
         </div>
       </div>
 
@@ -167,29 +165,22 @@ export const AdminDashboardPage = () => {
 
           </div>
 
-          <div className="h-72 w-full pt-4">
+          <div className="h-72 w-full pt-4 relative">
+            {!(stats.revenueTrend || []).some((d) => Number(d.revenue) > 0 || Number(d.bookings) > 0) && (
+              <p className="absolute inset-0 z-10 flex items-center justify-center text-xs text-slate-500">No bookings in the last 7 days yet.</p>
+            )}
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.revenueTrend || []}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="#94A3B8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
+              <BarChart data={stats.revenueTrend || []} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="date" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0F172A',
-                    borderRadius: '12px',
-                    border: 'none',
-                    color: '#fff',
-                    fontSize: '12px',
-                  }}
-                  formatter={(value) => [`₹${value}`, 'Revenue']}
+                  cursor={{ fill: 'rgba(37,99,235,0.06)' }}
+                  contentStyle={{ backgroundColor: '#0F172A', borderRadius: '12px', border: 'none', color: '#fff', fontSize: '12px' }}
+                  formatter={(value, name) => (name === 'revenue' ? [`₹${value}`, 'Revenue'] : [value, 'Bookings'])}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
+                <Bar dataKey="revenue" fill="#2563EB" radius={[8, 8, 0, 0]} maxBarSize={44} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -271,7 +262,7 @@ export const AdminDashboardPage = () => {
 
                 <div className="text-right">
                   <strong className="text-xs font-black text-slate-900">₹{loc.revenue}</strong>
-                  <div className="text-[10px] text-slate-500">{loc.bookingsCount} bookings</div>
+                  <div className="text-[11px] text-slate-500">{loc.bookingsCount} bookings</div>
                 </div>
               </div>
             ))}
@@ -305,11 +296,11 @@ export const AdminDashboardPage = () => {
                     <td className="py-3 px-3 font-mono font-bold text-blue-600">{b.bookingReference}</td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-900">{b.userName}</div>
-                      <div className="text-[10px] text-slate-400">{b.userPhone || b.userEmail}</div>
+                      <div className="text-[11px] text-slate-400">{b.userPhone || b.userEmail}</div>
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-slate-900 line-clamp-1">{b.locationName}</div>
-                      <div className="text-[10px] font-mono text-slate-500">Bay {b.slotNumber} • {b.vehicleNumber}</div>
+                      <div className="text-[11px] font-mono text-slate-500">Bay {b.slotNumber} • {b.vehicleNumber}</div>
                     </td>
                     <td className="py-3 px-3 font-black text-slate-900">₹{b.totalAmount}</td>
                     <td className="py-3 px-3">

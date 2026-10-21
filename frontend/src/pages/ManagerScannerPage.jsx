@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { ScanLine, Camera, CheckCircle2, XCircle, AlertTriangle, LogOut, LogIn, QrCode } from 'lucide-react';
+import { ScanLine, Camera, CheckCircle2, XCircle, AlertTriangle, LogOut, LogIn, QrCode, RotateCcw } from 'lucide-react';
 import api from '../services/api';
 import { FormField } from '../components/common/FormField';
 import { formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const GATES = ['Main Entrance', 'North Gate', 'South Gate', 'VIP / EV Lane'];
 const READER_ID = 'qr-reader-container';
 
 export const ManagerScannerPage = () => {
+  usePageTitle('Gate scanner');
   const [tokenInput, setTokenInput] = useState('');
   const [verifiedToken, setVerifiedToken] = useState('');
   const [gateName, setGateName] = useState(GATES[0]);
@@ -16,6 +18,7 @@ export const ManagerScannerPage = () => {
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const tokenRef = useRef(null);
 
   const verify = useCallback(async (raw) => {
     const token = (raw || '').trim();
@@ -65,6 +68,19 @@ export const ManagerScannerPage = () => {
     }
   };
 
+  // Ready for the next vehicle: clear everything and put the cursor back in the token box
+  const scanNext = () => {
+    setTokenInput('');
+    setVerifiedToken('');
+    setResult(null);
+    setActionMessage(null);
+    tokenRef.current?.focus();
+  };
+
+  useEffect(() => {
+    tokenRef.current?.focus();
+  }, []);
+
   const inside = Boolean(result?.entryTime) && !result?.exitTime;
   const canEnter = Boolean(result?.valid) && !result?.entryTime;
 
@@ -111,6 +127,7 @@ export const ManagerScannerPage = () => {
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value.trim().toUpperCase())}
                 placeholder="SP-A1B2C3D4E5F6A7B8"
+                ref={tokenRef}
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -177,6 +194,9 @@ export const ManagerScannerPage = () => {
                   <LogOut className="w-4 h-4" aria-hidden="true" /> Release vehicle
                 </button>
               </div>
+              <button type="button" onClick={scanNext} className="w-full py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /> Scan next vehicle
+              </button>
             </div>
           )}
         </section>

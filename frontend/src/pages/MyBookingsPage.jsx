@@ -4,6 +4,7 @@ import { Calendar, MapPin, Clock, Car, QrCode, Search, CreditCard, AlertCircle }
 import api from '../services/api';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { formatDateTime, formatTime } from '../utils/datetime';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const TABS = [
   { key: 'ALL', label: 'All reservations' },
@@ -17,6 +18,7 @@ const effectiveStatus = (b) =>
   b.status === 'PENDING_PAYMENT' && b.holdExpiresAt && new Date(b.holdExpiresAt) < new Date() ? 'EXPIRED' : b.status;
 
 export const MyBookingsPage = () => {
+  usePageTitle('My bookings');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -110,7 +112,7 @@ export const MyBookingsPage = () => {
 
                 <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 gap-2 shrink-0">
                   <div className="text-left md:text-right">
-                    <span className="text-[10px] text-slate-500 block uppercase font-semibold">Total fare</span>
+                    <span className="text-[11px] text-slate-500 block uppercase font-semibold">Total fare</span>
                     <strong className="text-xl font-black text-slate-900">₹{b.totalAmount}</strong>
                   </div>
                   {status === 'PENDING_PAYMENT' ? (

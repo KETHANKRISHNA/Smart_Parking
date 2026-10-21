@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { FormField } from '../components/common/FormField';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const homeFor = (role) => {
   if (role === 'ROLE_ADMIN') return '/admin/dashboard';
@@ -11,6 +12,7 @@ const homeFor = (role) => {
 };
 
 export const LoginPage = () => {
+  usePageTitle('Sign in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CreditCard, QrCode, Smartphone, Building, ShieldCheck, CheckCircle2, AlertCircle, Lock, Timer } from 'lucide-react';
 import api from '../services/api';
 import { FormField } from '../components/common/FormField';
+import { BookingStepper } from '../components/common/BookingStepper';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const METHODS = [
   { id: 'UPI', label: 'UPI', icon: Smartphone, tint: 'text-blue-600' },
@@ -36,6 +38,7 @@ const buildInstrument = (method, form) => {
 };
 
 export const PaymentPage = () => {
+  usePageTitle('Payment');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const bookingId = searchParams.get('bookingId');
@@ -124,7 +127,8 @@ export const PaymentPage = () => {
 
   if (result) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-10 sm:py-16">
+      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-14 space-y-6">
+        <BookingStepper current={5} />
         <div className="bg-white rounded-3xl border border-emerald-200 shadow-2xl p-8 sm:p-12 text-center space-y-6">
           <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
             <CheckCircle2 className="w-10 h-10" aria-hidden="true" />
@@ -154,11 +158,12 @@ export const PaymentPage = () => {
   const ss = remaining !== null ? String(remaining % 60).padStart(2, '0') : '--';
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 sm:py-16 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-8 sm:py-14 space-y-6">
+      <BookingStepper current={3} />
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
         <div className="p-6 sm:p-8 bg-slate-900 text-white flex items-center justify-between gap-4">
           <div>
-            <span className="text-[10px] font-bold tracking-widest uppercase bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded">Test mode: no real money moves</span>
+            <span className="text-[11px] font-bold tracking-widest uppercase bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded">Test mode: no real money moves</span>
             <h1 className="text-xl font-bold mt-2">Complete payment</h1>
             <p className="text-xs text-slate-400 mt-0.5">Booking <span className="font-mono text-white">{booking.bookingReference}</span></p>
           </div>

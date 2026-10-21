@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, User, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { FormField } from '../components/common/FormField';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const PASSWORD_RULE = /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/;
 
 export const RegisterPage = () => {
+  usePageTitle('Create account');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
