@@ -11,9 +11,12 @@ import com.smartparking.exception.ResourceNotFoundException;
 import com.smartparking.repository.BookingRepository;
 import com.smartparking.repository.ParkingLocationRepository;
 import com.smartparking.repository.ParkingSlotRepository;
+import com.smartparking.security.CustomUserDetails;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -25,13 +28,25 @@ public class ParkingSlotService {
     private final ParkingSlotRepository slotRepository;
     private final ParkingLocationRepository locationRepository;
     private final BookingRepository bookingRepository;
+    private final AuditService auditService;
+    private final FacilityAccessService facilityAccess;
+    private final Clock clock;
+    private final long paymentWindowMinutes;
 
     public ParkingSlotService(ParkingSlotRepository slotRepository,
                               ParkingLocationRepository locationRepository,
-                              BookingRepository bookingRepository) {
+                              BookingRepository bookingRepository,
+                              AuditService auditService,
+                              FacilityAccessService facilityAccess,
+                              Clock clock,
+                              @Value("${app.booking.payment-window-minutes:15}") long paymentWindowMinutes) {
         this.slotRepository = slotRepository;
         this.locationRepository = locationRepository;
         this.bookingRepository = bookingRepository;
+        this.auditService = auditService;
+        this.facilityAccess = facilityAccess;
+        this.clock = clock;
+        this.paymentWindowMinutes = paymentWindowMinutes;
     }
 
     @Transactional(readOnly = true)
@@ -40,18 +55,13 @@ public class ParkingSlotService {
 
         Set<Long> bookedSlotIds = new HashSet<>();
         if (startTime != null && endTime != null) {
-            bookedSlotIds.addAll(bookingRepository.findBookedSlotIdsInWindow(locationId, startTime, endTime));
+            bookedSlotIds.addAll(bookingRepository.findBookedSlotIdsInWindow(locationId, startTime, endTime,
+                    LocalDateTime.now(clock).minusMinutes(paymentWindowMinutes)));
         }
 
         return slots.stream()
                 .map(slot -> mapToDto(slot, bookedSlotIds.contains(slot.getId())))
                 .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public ParkingSlotDto getSlotDtoById(Long slotId) {
-        ParkingSlot slot = getSlotById(slotId);
-        return mapToDto(slot, false);
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +75,7 @@ public class ParkingSlotService {
         ParkingLocation location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parking location not found with id: " + request.getLocationId()));
 
-        if (slotRepository.findByParkingLocationIdAndSlotNumber(location.getId(), request.getSlotNumber().trim()).isPresent()) {
+        if (slotRepository.findByParkingLocationIdAndSlotNumberIgnoreCase(location.getId(), request.getSlotNumber().trim()).isPresent()) {
             throw new BadRequestException("Slot number '" + request.getSlotNumber() + "' already exists in this location");
         }
 
@@ -87,10 +97,23 @@ public class ParkingSlotService {
         return mapToDto(saved, false);
     }
 
+    /**
+     * Staff may only flip a bay between AVAILABLE and OUT_OF_SERVICE. OCCUPIED/RESERVED are driven by
+     * gate scans and bookings, and a bay with a vehicle inside cannot be taken out of service by hand.
+     */
     @Transactional
-    public ParkingSlotDto updateSlotStatus(Long slotId, SlotStatus status) {
+    public ParkingSlotDto updateSlotStatus(Long slotId, SlotStatus status, CustomUserDetails actor) {
+        if (status != SlotStatus.AVAILABLE && status != SlotStatus.OUT_OF_SERVICE) {
+            throw new BadRequestException("Bay status can only be set to AVAILABLE or OUT_OF_SERVICE manually");
+        }
         ParkingSlot slot = getSlotById(slotId);
+        facilityAccess.requireAccess(actor, slot.getParkingLocation().getId());
+        if (slot.getStatus() == SlotStatus.OCCUPIED) {
+            throw new BadRequestException("Bay " + slot.getSlotNumber() + " has a vehicle inside. Process the gate exit first.");
+        }
         slot.setStatus(status);
+        auditService.log("SLOT_STATUS_CHANGED", actor.getEmail(), "ParkingSlot", slotId,
+                slot.getSlotNumber() + " -> " + status, null);
         return mapToDto(slotRepository.save(slot), false);
     }
 
@@ -99,7 +122,7 @@ public class ParkingSlotService {
         ParkingSlot slot = getSlotById(slotId);
 
         if (!slot.getSlotNumber().equalsIgnoreCase(request.getSlotNumber().trim())) {
-            slotRepository.findByParkingLocationIdAndSlotNumber(slot.getParkingLocation().getId(), request.getSlotNumber().trim())
+            slotRepository.findByParkingLocationIdAndSlotNumberIgnoreCase(slot.getParkingLocation().getId(), request.getSlotNumber().trim())
                     .ifPresent(existing -> {
                         if (!existing.getId().equals(slotId)) {
                             throw new BadRequestException("Slot number '" + request.getSlotNumber() + "' already exists in this location");
@@ -108,20 +131,24 @@ public class ParkingSlotService {
             slot.setSlotNumber(request.getSlotNumber().trim().toUpperCase());
         }
 
-        slot.setSlotType(request.getSlotType());
-        slot.setStatus(request.getStatus());
+        if (request.getSlotType() != null) slot.setSlotType(request.getSlotType());
+        if (request.getStatus() != null) slot.setStatus(request.getStatus());
         slot.setCustomHourlyRate(request.getCustomHourlyRate());
-        slot.setFloorLevel(request.getFloorLevel());
+        if (request.getFloorLevel() != null) slot.setFloorLevel(request.getFloorLevel());
         slot.setHasEvCharger(request.isHasEvCharger());
 
         return mapToDto(slotRepository.save(slot), false);
     }
 
     @Transactional
-    public void deleteSlot(Long slotId) {
+    public void deleteSlot(Long slotId, String actorEmail) {
         ParkingSlot slot = getSlotById(slotId);
+        if (bookingRepository.existsByParkingSlotId(slotId)) {
+            throw new BadRequestException("Bay " + slot.getSlotNumber() + " has booking history and cannot be deleted. Mark it out of service instead.");
+        }
         ParkingLocation loc = slot.getParkingLocation();
         slotRepository.delete(slot);
+        auditService.log("SLOT_DELETED", actorEmail, "ParkingSlot", slotId, slot.getSlotNumber(), null);
         loc.setTotalSlots((int) slotRepository.countByParkingLocationId(loc.getId()));
         locationRepository.save(loc);
     }

@@ -1,6 +1,7 @@
 package com.smartparking.dto.auth;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class ChangePasswordRequest {
@@ -9,7 +10,8 @@ public class ChangePasswordRequest {
     private String currentPassword;
 
     @NotBlank(message = "New password is required")
-    @Size(min = 6, max = 40, message = "New password must be at least 6 characters")
+    @Size(min = 8, max = 64, message = "Password must be 8 to 64 characters")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Password must contain a letter and a digit")
     private String newPassword;
 
     public ChangePasswordRequest() {}

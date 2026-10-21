@@ -20,6 +20,11 @@ public interface ParkingLocationRepository extends JpaRepository<ParkingLocation
     
     List<ParkingLocation> findByManager(User manager);
 
+    List<ParkingLocation> findByManagerId(Long managerId);
+
+    @Query("SELECT p.category, COUNT(p) FROM ParkingLocation p GROUP BY p.category")
+    List<Object[]> countByCategory();
+
     @Query("SELECT p FROM ParkingLocation p WHERE p.active = true AND " +
            "(LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            " LOWER(p.city) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
