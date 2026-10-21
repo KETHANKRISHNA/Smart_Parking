@@ -1,461 +1,160 @@
-# 🚗 Smart Parking Management System (SPMS)
-### *Find. Book. Park Smartly at Popular Places.*
+# SmartPark: Smart Parking Management System
 
-A production-grade, full-stack **Smart Parking Management System** built with **Spring Boot 3.x (Java 21/25)**, **React (Vite)**, **Tailwind CSS**, and **MySQL 8.0**. Designed directly from the reference architectural blueprint to deliver real-time slot availability, interactive Leaflet geo-mapping, visual parking bay selection, transactional reservation concurrency controls, simulated payment gateways, and contactless QR-code gate entry/exit verification.
+Find a parking facility, pick a bay, pay, and walk in with a QR ticket. Facility managers scan tickets at the gate; administrators run the whole network.
 
----
+**Spring Boot 3 (Java 21) REST API + React 19 single-page app.** The build produces one runnable Spring Boot jar that serves both, and the same React build can be hosted on Vercel in front of a separately hosted API.
 
-## 📸 System Highlights & Reference Architecture Alignment
+## Features
 
-| Feature Category | Implementation Details |
-| :--- | :--- |
-| **Backend Architecture** | Spring Boot 3.3.4, Spring Security, JWT 0.12.6, Spring Data JPA, Hibernate, ZXing QR Engine, OpenAPI/Swagger |
-| **Frontend UI/UX** | React 18, Vite, Tailwind CSS, Lucide React, Leaflet Maps, Recharts Analytics, Canvas Confetti |
-| **Database Engine** | MySQL 8.0 InnoDB + Automatic Zero-Config Persistent H2 Fallback (`MODE=MySQL`) |
-| **Role-Based Access Control** | `ROLE_USER`, `ROLE_PARKING_MANAGER`, `ROLE_ADMIN` enforced at controller & service layers |
-| **Concurrency & Integrity** | `Isolation.SERIALIZABLE` booking locks, server-side fee calculations, duplicate scan prevention |
-| **Popular Facility Coverage** | Hospitals, Shopping Malls, Railway Stations, International Airports, IT Tech Parks, Tourist Landmarks |
+| Role | What they can do |
+|---|---|
+| **Driver** (customer) | Search facilities on a map or list (by name, city, category, price, availability) · see live bay availability for the chosen time window · reserve a bay (the server calculates the price) · pay within a 15 minute hold · get a QR ticket · cancel (full refund up to 1 hour before the start) · notifications |
+| **Facility manager** | Live bay board for their own facility · take bays out of service / return them · scan QR tickets at the gate (entry within the booked window, exit with overstay fee calculation) · today's reservations |
+| **Administrator** | Dashboard (revenue, occupancy, vehicle mix, top facilities, 7 day trend) · create/edit facilities and bays · assign managers · create staff accounts, change roles, disable users · all bookings · audit trail |
 
----
+## Tech stack
 
-## 🏛️ System Architecture
+| Layer | Technology |
+|---|---|
+| API | Spring Boot 3.3.4, Spring Web, Spring Security (stateless JWT access + refresh tokens), Spring Data JPA / Hibernate, Bean Validation, springdoc OpenAPI, ZXing (QR), Actuator (health) |
+| Database | PostgreSQL in production with **Flyway** migrations · H2 (file) for local development · H2 in-memory for tests |
+| Front end | React 19, Vite 8, React Router 7, Tailwind CSS 3, axios, Recharts, Leaflet, html5-qrcode |
+| Quality | JUnit 5 + Mockito + `@SpringBootTest` (29 tests, including a concurrent double-booking test) · Vitest + Testing Library (22 tests) · oxlint · GitHub Actions CI |
+| Deployment | Multi-stage `Dockerfile` · `render.yaml` (API + Postgres on Render) · `frontend/vercel.json` (Vercel) |
 
-The application adheres to clean hexagonal multi-tier architecture matching the system blueprint:
-
-```mermaid
-graph TB
-    subgraph Client["Presentation Tier (React + Vite + Tailwind)"]
-        UI_User["Driver Portal & Map View"]
-        UI_Manager["Gate Manager & QR Scanner"]
-        UI_Admin["Executive Analytics & CRUD"]
-    end
-
-    subgraph Security["Security & Identity Layer"]
-        JWT_Filter["JwtAuthenticationFilter"]
-        Sec_Config["Spring Security RBAC"]
-        Token_Prov["JwtTokenProvider"]
-    end
-
-    subgraph APILayer["API Layer (Spring Web REST Controllers)"]
-        AuthController["AuthController (/api/v1/auth)"]
-        ParkingController["ParkingLocationController (/api/v1/parking)"]
-        BookingController["BookingController (/api/v1/bookings)"]
-        PaymentController["PaymentController (/api/v1/payments)"]
-        SessionController["ParkingSessionController (/api/v1/parking-sessions)"]
-        ManagerController["ParkingManagerController (/api/v1/manager)"]
-        AdminController["AdminController (/api/v1/admin)"]
-        NotificationController["NotificationController (/api/v1/notifications)"]
-    end
-
-    subgraph ServiceLayer["Service & Business Logic Layer"]
-        AuthService["AuthService"]
-        ParkingService["ParkingLocationService"]
-        BookingService["BookingService (Overlap & Concurrency Protection)"]
-        PaymentService["PaymentService (Simulated Gateway)"]
-        SessionService["ParkingSessionService (Entry/Exit Validation)"]
-        AdminService["AdminService (KPIs & Aggregations)"]
-        QRService["QRCodeService (ZXing Matrix Generator)"]
-    end
-
-    subgraph DataAccess["Data Access Layer (Spring Data JPA)"]
-        UserRepo["UserRepository"]
-        LocRepo["ParkingLocationRepository"]
-        SlotRepo["ParkingSlotRepository"]
-        BookRepo["BookingRepository"]
-        PayRepo["PaymentRepository"]
-        SessRepo["ParkingSessionRepository"]
-        AuditRepo["AuditLogRepository"]
-    end
-
-    subgraph Database["Database & Storage"]
-        DB[(MySQL 8.0 / Persistent H2 Engine)]
-    end
-
-    Client -->|HTTPS / JWT| Security
-    Security --> APILayer
-    APILayer --> ServiceLayer
-    ServiceLayer --> DataAccess
-    DataAccess --> Database
-    ServiceLayer -.-> QRService
-```
-
----
-
-## 📊 Database Entity-Relationship (ER) Diagram
-
-```mermaid
-erDiagram
-    USERS ||--o{ BOOKINGS : places
-    USERS ||--o{ NOTIFICATIONS : receives
-    USERS ||--o{ AUDIT_LOGS : triggers
-    USERS ||--o{ PARKING_LOCATIONS : manages
-    PARKING_LOCATIONS ||--o{ PARKING_SLOTS : contains
-    PARKING_LOCATIONS ||--o{ BOOKINGS : hosts
-    PARKING_SLOTS ||--o{ BOOKINGS : reserved_for
-    BOOKINGS ||--o{ PAYMENTS : generates
-    BOOKINGS ||--o| PARKING_SESSIONS : tracked_by
-
-    USERS {
-        bigint id PK
-        varchar email UK
-        varchar password
-        varchar full_name
-        varchar phone_number
-        enum role "ROLE_USER, ROLE_ADMIN, ROLE_PARKING_MANAGER"
-        boolean enabled
-        datetime created_at
-    }
-
-    PARKING_LOCATIONS {
-        bigint id PK
-        varchar name
-        varchar address
-        varchar city
-        decimal latitude
-        decimal longitude
-        enum category "HOSPITAL, MALL, RAILWAY_STATION, AIRPORT, IT_PARK, TOURIST_SPOT"
-        decimal hourly_rate
-        int total_slots
-        varchar opening_time
-        varchar closing_time
-        boolean active
-        bigint manager_id FK
-    }
-
-    PARKING_SLOTS {
-        bigint id PK
-        bigint location_id FK
-        varchar slot_number
-        int floor_level
-        enum slot_type "CAR, BIKE, EV, ACCESSIBLE"
-        enum status "AVAILABLE, RESERVED, OCCUPIED, OUT_OF_SERVICE"
-        boolean has_ev_charger
-        decimal custom_hourly_rate
-    }
-
-    BOOKINGS {
-        bigint id PK
-        varchar booking_reference UK
-        bigint user_id FK
-        bigint slot_id FK
-        bigint location_id FK
-        varchar vehicle_number
-        enum vehicle_type "CAR, BIKE, EV, ACCESSIBLE"
-        datetime start_time
-        datetime end_time
-        decimal total_amount
-        enum status "PENDING_PAYMENT, CONFIRMED, CANCELLED, COMPLETED, EXPIRED"
-        varchar qr_verification_token UK
-        text qr_code_base64
-    }
-
-    PAYMENTS {
-        bigint id PK
-        bigint booking_id FK
-        varchar transaction_reference UK
-        decimal amount
-        enum payment_method "UPI, CREDIT_CARD, DEBIT_CARD, NET_BANKING, WALLET"
-        enum payment_status "PENDING, SUCCESS, FAILED, REFUNDED"
-        datetime payment_time
-    }
-
-    PARKING_SESSIONS {
-        bigint id PK
-        bigint booking_id FK
-        bigint slot_id FK
-        datetime entry_time
-        datetime exit_time
-        enum status "ACTIVE, COMPLETED, OVERTIME"
-        decimal overtime_penalty
-        bigint verified_by_user_id FK
-    }
-
-    NOTIFICATIONS {
-        bigint id PK
-        bigint user_id FK
-        varchar title
-        text message
-        enum type "BOOKING, PAYMENT, GATE, SYSTEM"
-        boolean is_read
-        datetime created_at
-    }
-
-    AUDIT_LOGS {
-        bigint id PK
-        bigint user_id FK
-        varchar action
-        varchar entity_name
-        varchar entity_id
-        text details
-        varchar ip_address
-        datetime timestamp
-    }
-```
-
----
-
-## 🗺️ User Journey (7-Step Interactive Workflow)
+## How it fits together
 
 ```
-[1. Search Location] ──> [2. Find Nearby Parking] ──> [3. Check Availability] ──> [4. Book Slot]
-   (City, Name, Type)       (Interactive Map + List)    (Color-Coded Bay Grid)     (Duration & Vehicle)
-                                                                                         │
-[7. Park & Exit Gate] <── [6. QR Pass Generated] <── [5. Complete Payment] <────────────┘
- (Manager Camera Scan)     (Contactless Digital QR)    (Simulated Gateway)
+ Browser ──► Vercel (static React build)  ── /api/* rewrite ──►  Render: Spring Boot jar ──► PostgreSQL
+ Browser ──► single Spring Boot jar (React bundled in /static) ───────────────────────────► H2 / PostgreSQL
 ```
 
-1. **Search Location**: Drivers filter by category (Hospital, Mall, Airport, IT Park, Railway, Landmark), city, or vehicle type.
-2. **Find Nearby Parking**: Switch between an interactive OpenStreetMap Leaflet view and modern card list view with real-time slot counters and distance metrics.
-3. **Check Live Availability**: Navigate into the facility bay grid with real-time status indicators (🟢 Available, 🔴 Occupied, 🟡 Reserved, ⚪ Maintenance).
-4. **Book Slot**: Select an eligible bay, specify vehicle plate number (`KA-05-AB-9999`), and adjust the duration slider.
-5. **Simulated Payment**: Checkout via simulated UPI, Debit/Credit Card, or NetBanking with instant transaction receipts.
-6. **QR Code Generated**: Receive an official digital parking ticket pass with a high-resolution scannable QR matrix, printable voucher, and 1-click Google Maps navigation.
-7. **Park & Exit Gate Verification**: On arrival, the parking manager scans the QR pass using their device camera or manual verification token, unlocking the gate barrier and recording exact timestamps.
+Everything the browser calls is same-origin (`/api/v1/...`): in development Vite proxies it, on Vercel a rewrite proxies it, and in the jar the API and the app share a server. No CORS configuration is needed for any of these.
 
----
+Backend packages (`backend/src/main/java/com/smartparking`): `controller` → `service` → `repository` → `entity`, with `dto`, `security` (JWT filter, rate limiting), `payment` (gateway abstraction), `scheduler` (hold expiry, no-shows), `config`, `exception`, `web` (SPA fallback).
 
-## 👥 Role Matrix & Pre-Seeded Demo Credentials
+## Run it locally
 
-The platform includes convenient **1-Click Demo Login** buttons on the Login page for hassle-free evaluation:
+Requirements: JDK 21+ and Node 22+ (the Maven build downloads its own Node if you only use Maven).
 
-| Role | Email | Password | Primary Capabilities |
-| :--- | :--- | :--- | :--- |
-| **`ROLE_USER`** *(Driver)* | `user@smartparking.com` | `User@123` | Search locations, view slot bay map, reserve slots, simulate payment, view digital QR pass, cancel reservations. |
-| **`ROLE_USER`** *(Driver 2)* | `rahul@smartparking.com` | `User@123` | Second registered driver for concurrency and multi-user testing. |
-| **`ROLE_PARKING_MANAGER`** | `manager@smartparking.com` | `Manager@123` | Assigned to **Phoenix Marketcity**. Access live occupancy meter, gate scanner (camera + manual token), mark entry/exit. |
-| **`ROLE_PARKING_MANAGER`** *(Apollo)* | `manager2@smartparking.com` | `Manager@123` | Assigned to **Apollo Multispecialty Hospital**. Facility-restricted manager portal. |
-| **`ROLE_ADMIN`** | `admin@smartparking.com` | `Admin@123` | Executive analytics (Recharts), facility CRUD, slot inventory, user accounts, system audit trail. |
-
----
-
-## 🚀 Quickstart Guide
-
-### Prerequisites
-- **Java**: JDK 21 or later (`java -version`)
-- **Node.js**: v18.0.0 or later (`node -v`)
-- **Maven**: 3.8+ (or use IDE Maven wrapper)
-- **MySQL**: 8.0+ *(Optional; system defaults to persistent zero-config H2 file mode with full MySQL dialect compatibility)*
-
----
-
-### Step 1: Start the Spring Boot Backend
-
-Open your terminal or PowerShell in the project directory:
+**Option A: one jar, whole site (what you submit)**
 
 ```bash
 cd backend
-mvn spring-boot:run
+./mvnw package            # runs the tests, builds the React app, bundles it into the jar
+java -jar target/smart-parking-backend-1.0.0.jar
+# open http://localhost:8080
 ```
 
-- Backend runs on: **`http://localhost:8080`**
-- Swagger / OpenAPI UI: **`http://localhost:8080/swagger-ui.html`**
-- OpenAPI JSON Spec: **`http://localhost:8080/api-docs`**
-- Embedded Database Console: **`http://localhost:8080/h2-console`** *(JDBC URL: `jdbc:h2:file:./data/smartparking`, User: `sa`, Password: blank)*
+If a Vite dev server is running and `npm install` complains about locked files on Windows, build the front end yourself and skip that step: `cd frontend && npm run build`, then `./mvnw package -DskipFrontend` (the built `frontend/dist` is still bundled).
 
-> **Note**: On the very first run, `DataInitializerService` automatically seeds 5 user accounts, 6 major parking facilities, and dozens of pre-configured slots.
-
----
-
-### Step 2: Start the React Frontend
-
-Open a second terminal window:
+**Option B: development with hot reload**
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cd backend && ./mvnw spring-boot:run      # API on :8080
+cd frontend && npm install && npm run dev # app on :5173, /api proxied to :8080
 ```
 
-- Frontend runs on: **`http://localhost:5173`**
-- Built with Vite for instant hot-module-reloading.
+The default `dev` profile needs no configuration: it creates a file-based H2 database in `backend/data/`, seeds demo data, and enables Swagger UI (`/swagger-ui.html`) and the H2 console (`/h2-console`, localhost only).
 
----
+### Demo accounts (dev profile / `SEED_DEMO_DATA=true` only)
 
-### Step 3: (Optional) Connecting to MySQL 8.0 / MySQL Workbench
+| Role | Email | Password |
+|---|---|---|
+| Administrator | `admin@smartparking.com` | `Admin@123` |
+| Facility manager | `manager@smartparking.com` | `Manager@123` |
+| Facility manager | `manager2@smartparking.com` | `Manager@123` |
+| Driver | `user@smartparking.com` | `User@123` |
+| Driver | `kethan@smartparking.com` | `Kethan@123` |
 
-If you want to run against a standalone MySQL 8.0 server:
+These exist only when demo data is on. They are public knowledge, so never enable demo data on a deployment people rely on.
 
-1. Open **MySQL Workbench** and execute `database/schema.sql`.
-2. Execute `database/seed-data.sql` to populate initial demo data.
-3. Start the backend with the `mysql` profile activated:
-
-**PowerShell (Windows):**
-```powershell
-$env:SPRING_PROFILES_ACTIVE="mysql"
-$env:SPRING_DATASOURCE_USERNAME="root"
-$env:SPRING_DATASOURCE_PASSWORD="YOUR_MYSQL_PASSWORD"
-cd backend
-mvn spring-boot:run
-```
-
-**Bash / Linux / macOS:**
-```bash
-export SPRING_PROFILES_ACTIVE=mysql
-export SPRING_DATASOURCE_USERNAME=root
-export SPRING_DATASOURCE_PASSWORD=YOUR_MYSQL_PASSWORD
-cd backend
-mvn spring-boot:run
-```
-
----
-
-## 🧪 Running Automated Unit & Integration Tests
-
-The backend includes a comprehensive test suite covering transactional overlap collision detection, price calculation integrity, and booking workflows:
+## Tests
 
 ```bash
-cd backend
-mvn test
+cd backend  && ./mvnw verify            # 29 tests: unit, security matrix, payment/gate flow, concurrency, Flyway
+cd frontend && npm run lint && npm test # 22 tests
 ```
 
-Expected output:
-```
-[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-```
+The integration tests (`SmartParkingFlowIT`) run the real Spring context. They check, among other things, that registering with `"role":"ROLE_ADMIN"` still yields a customer, that one of eight simultaneous bookings of the same bay wins, that a manager cannot scan another facility's ticket, and that a disabled user's token stops working immediately.
 
----
+## Configuration
 
-## 📡 REST API Catalog (`/api/v1`)
+Local development needs none. For production see [`backend/.env.example`](backend/.env.example); the important ones:
 
-### 1. Authentication (`/api/v1/auth`)
-- `POST /api/v1/auth/register` — Register a new driver account.
-- `POST /api/v1/auth/login` — Authenticate and receive a signed JWT token.
-- `GET  /api/v1/auth/me` — Retrieve current authenticated user profile.
+| Variable | Purpose |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `dev` (default) or `prod` |
+| `JWT_SECRET` | **Required in prod**, 32+ random characters. The app refuses to start without it |
+| `DB_HOST`, `DB_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` (or `DATABASE_URL`) | PostgreSQL connection |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | Creates the first admin on an empty database |
+| `SEED_DEMO_DATA` | `true` loads sample facilities and the demo accounts above |
+| `PORT` | HTTP port (hosting platforms set it) |
 
-### 2. Parking Locations & Slots (`/api/v1/parking`)
-- `GET /api/v1/parking` — Search facilities with filters (city, query, category, minAvailableSlots).
-- `GET /api/v1/parking/{id}` — Retrieve facility details and operating hours.
-- `GET /api/v1/parking/{id}/slots` — Retrieve slot bay grid and live statuses.
-- `GET /api/v1/parking/{id}/availability` — Real-time availability breakdown by vehicle type.
+## Booking lifecycle and rules
 
-### 3. Bookings (`/api/v1/bookings`)
-- `POST /api/v1/bookings` — Reserve a slot with validation and price calculation.
-- `GET  /api/v1/bookings/my` — Get logged-in user's bookings with filter tabs.
-- `GET  /api/v1/bookings/{id}` — Get booking details and base64 QR code pass.
-- `POST /api/v1/bookings/{id}/cancel` — Cancel an active reservation.
+`PENDING_PAYMENT` (bay held for 15 minutes) → pay → `CONFIRMED` (QR issued) → gate entry → gate exit → `COMPLETED`. Unpaid holds become `EXPIRED`; unused confirmed bookings become `EXPIRED` (no-show) after their window; users can cancel while nothing has been scanned.
 
-### 4. Payments (`/api/v1/payments`)
-- `POST /api/v1/payments/create-order` — Initialize payment order for booking.
-- `POST /api/v1/payments/confirm` — Confirm simulated payment and activate QR pass.
-- `GET  /api/v1/payments/my` — Retrieve user payment transaction history.
+* The slot row is locked while a booking is created, so two people can never hold the same bay for overlapping times.
+* The server prices every booking (half-hour rounding, one hour minimum, 30 minutes to 24 hours, up to 30 days ahead). A vehicle must fit the bay (bikes only in bike bays, and so on).
+* A ticket is valid from 15 minutes before the start until the end of the booked window. Exiting late records an overstay fee, which the manager collects at the gate (it is not charged online).
+* Payments go through a `PaymentGateway`. The bundled `MockPaymentGateway` behaves like a test-mode gateway: it approves everything except a card ending `0002` or a UPI id containing `fail`. **No real money moves.** To take real payments, implement `PaymentGateway` for Razorpay or Stripe.
 
-### 5. Gate Verification & Sessions (`/api/v1/parking-sessions`)
-- `POST /api/v1/parking-sessions/verify` — Inspect QR token prior to barrier opening.
-- `POST /api/v1/parking-sessions/entry` — Record vehicle gate entry and change slot to OCCUPIED.
-- `POST /api/v1/parking-sessions/exit` — Record vehicle gate exit, assess overtime, and free slot.
+## API
 
-### 6. Parking Manager (`/api/v1/manager`)
-- `GET /api/v1/manager/facility` — Get assigned parking facility metrics and occupancy.
-- `PUT /api/v1/manager/slots/{slotId}/status` — Update individual slot maintenance status.
+Interactive docs are at `/swagger-ui.html` when `SWAGGER_ENABLED=true` (always in dev). Base path `/api/v1`; responses are wrapped as `{ success, message, data, timestamp }`.
 
-### 7. Admin & Analytics (`/api/v1/admin`)
-- `GET    /api/v1/admin/dashboard` — Executive KPI summary (occupancy, revenue, distribution).
-- `POST   /api/v1/admin/locations` — Create a new parking facility.
-- `PUT    /api/v1/admin/locations/{id}` — Update facility details or toggle active status.
-- `POST   /api/v1/admin/slots` — Add a new parking bay.
-- `GET    /api/v1/admin/users` — List and manage user accounts and roles.
-- `GET    /api/v1/admin/bookings` — Supervise all system reservations.
-- `GET    /api/v1/admin/audit-logs` — Review system security audit trail.
+| Area | Endpoints |
+|---|---|
+| Auth (public) | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` |
+| Auth (signed in) | `POST /auth/logout` · `GET /auth/me` |
+| Catalogue (public) | `GET /parking` · `GET /parking/{id}` · `GET /parking/{id}/slots?startTime&endTime` · `GET /parking/{id}/availability` |
+| Bookings | `POST /bookings` · `GET /bookings/my` · `GET /bookings/{id}` · `GET /bookings/ref/{ref}` · `POST /bookings/{id}/cancel` |
+| Payments | `POST /payments/create-order` · `POST /payments/confirm` · `GET /payments/my` |
+| Profile / notifications | `GET·PUT /users/profile` · `POST /users/change-password` · `GET /notifications` · `PATCH /notifications/{id}/read` · `POST /notifications/read-all` |
+| Manager (manager or admin) | `GET /manager/facilities·facility·facility/slots` · `PATCH /manager/slots/{id}/status` · `GET /manager/today-bookings` · `POST /manager/verify-ticket·gate-entry·gate-exit` |
+| Admin | `GET /admin/dashboard·bookings·users·audit-logs·locations` · `POST·PUT·DELETE /admin/locations` · `POST /admin/locations/{id}/assign-manager/{managerId}` · `POST·PUT·PATCH·DELETE /admin/slots` · `POST /admin/users` · `PATCH /admin/users/{id}/role·toggle-status` |
 
----
+## Security notes
 
-## 🛡️ Concurrency & Double-Booking Protection
+* Self-registration can only create customers. Staff accounts are created by an admin (`POST /admin/users`) or by `BOOTSTRAP_ADMIN_*`.
+* Access tokens last 24 hours, refresh tokens 7 days; refresh tokens cannot be used as access tokens, and disabled users lose access immediately.
+* Payment outcomes are decided by the server, never by the browser. QR tickets are issued only after payment and are checked against the manager's own facility.
+* Login, registration and refresh are rate limited per IP (in memory, so per instance). Passwords: 8+ characters with a letter and a digit, hashed with BCrypt.
+* Dev tooling (H2 console, Swagger, demo data) is off outside the dev profile. Error responses never include exception details.
+* Tokens are kept in `localStorage`, which an XSS bug could read; the Vercel config therefore ships a strict Content-Security-Policy.
 
-A critical requirement of any production smart parking platform is ensuring two users cannot reserve the same parking slot for overlapping time windows.
+## Deploy
 
-In `BookingService.java`:
-1. **Transaction Isolation**: Reservation requests execute inside `@Transactional(isolation = Isolation.SERIALIZABLE)`.
-2. **Overlap Query**:
-   ```sql
-   SELECT b FROM Booking b 
-   WHERE b.slot.id = :slotId 
-     AND b.status IN ('CONFIRMED', 'PENDING_PAYMENT')
-     AND (b.startTime < :endTime AND b.endTime > :startTime)
-   ```
-3. **Pessimistic Slot Status Validation**: Rejects reservations if slot is `OCCUPIED` or `OUT_OF_SERVICE`.
-4. **Server-Side Price Calculation**: Price is calculated solely on backend using `Duration.between(start, end)` multiplied by `effectiveHourlyRate`. Frontend price submissions are never trusted.
+### 1. API + database on Render
 
----
+1. Push the repository to GitHub.
+2. Render → **New → Blueprint** → select the repository. `render.yaml` creates the Docker web service and a Postgres database and wires the connection variables.
+3. In the service's **Environment** tab set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` (and `SEED_DEMO_DATA=true` if you want sample data for a demo).
+4. Open `https://<your-service>.onrender.com/` to see the whole site, and `/actuator/health` for status.
 
-## 📁 Repository Directory Structure
+Free instances sleep when idle, so the first request after a pause can take about a minute. Render's free Postgres is time-limited; check its current terms or choose a paid plan.
+
+### 2. Front end on Vercel
+
+1. In [`frontend/vercel.json`](frontend/vercel.json) replace `https://smartparking-api.onrender.com` with your Render service URL (it appears once, in the `/api` rewrite).
+2. Vercel → **Add New Project** → import the repository → set **Root Directory** to `frontend`. The framework preset (Vite) is detected from the config.
+3. Deploy. No environment variables are needed: the app calls `/api/...` on its own domain and Vercel forwards it to Render.
+
+Vercel hosts only the React build: it cannot run a Java server, which is why the API lives on Render.
+
+## Project layout
 
 ```
-smart-parking/
-├── backend/                              # Spring Boot 3.3.4 Application
-│   ├── data/                             # Persistent H2 file storage directory
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/smartparking/
-│   │   │   │   ├── config/               # Security, OpenAPI, CORS configuration
-│   │   │   │   ├── controller/           # Versioned REST Controllers (/api/v1/*)
-│   │   │   │   ├── dto/                  # Request / Response Transfer Objects
-│   │   │   │   ├── entity/               # JPA Entities (JPA Annotations & Indexes)
-│   │   │   │   ├── enums/                # Role, SlotType, SlotStatus, BookingStatus
-│   │   │   │   ├── exception/            # GlobalExceptionHandler & Domain Exceptions
-│   │   │   │   ├── repository/           # Spring Data JPA Repositories
-│   │   │   │   ├── security/             # JWT Provider, AuthFilter, UserDetails
-│   │   │   │   └── service/              # Transactional Business Services & QR Engine
-│   │   │   └── resources/
-│   │   │       ├── application.properties
-│   │   │       └── application-mysql.properties
-│   │   └── test/                         # Unit tests (BookingServiceTest)
-│   ├── pom.xml
-│   └── .env.example
-├── frontend/                             # React 18 + Vite + Tailwind CSS Application
-│   ├── src/
-│   │   ├── components/                   # Navbar, Footer, ProtectedRoute
-│   │   ├── context/                      # AuthContext (Role Switcher), NotificationContext
-│   │   ├── pages/
-│   │   │   ├── LandingPage.jsx           # Hero, Journey, Categories, Benefits
-│   │   │   ├── SearchParkingPage.jsx     # Leaflet Map + Grid/List View
-│   │   │   ├── ParkingDetailsPage.jsx    # Visual Color-Coded Slot Bay Grid
-│   │   │   ├── BookingConfirmationPage.jsx # Reservation Summary & Validation
-│   │   │   ├── PaymentPage.jsx           # Simulated Payment Gateway + Confetti
-│   │   │   ├── BookingTicketPage.jsx     # Base64 Scannable QR Pass & Print
-│   │   │   ├── MyBookingsPage.jsx        # User Reservation History
-│   │   │   ├── UserDashboardPage.jsx     # Driver Portal & Active Passes
-│   │   │   ├── AdminDashboardPage.jsx    # Executive Analytics (Recharts)
-│   │   │   ├── AdminLocationsPage.jsx    # Facility CRUD Management
-│   │   │   ├── AdminSlotsPage.jsx        # Slot Bay Inventory Management
-│   │   │   ├── AdminBookingsPage.jsx     # Global Booking Supervision
-│   │   │   ├── AdminUsersPage.jsx        # User Account Role Management
-│   │   │   ├── AdminAuditLogsPage.jsx    # Security Audit Trail
-│   │   │   ├── ManagerDashboardPage.jsx  # Facility Manager Portal & Live Occupancy
-│   │   │   ├── ManagerScannerPage.jsx    # Camera QR Reader + Gate Barrier Trigger
-│   │   │   ├── ProfilePage.jsx           # User Profile & Security Settings
-│   │   │   ├── AccessDeniedPage.jsx      # HTTP 403 Forbidden Screen
-│   │   │   └── NotFoundPage.jsx          # HTTP 404 Route Screen
-│   │   ├── services/                     # Axios API Client with JWT Interceptors
-│   │   ├── App.jsx                       # React Router v6 Configuration
-│   │   ├── index.css                     # Tailwind CSS Directives & Custom Utilities
-│   │   └── main.jsx
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── .env.example
-├── database/                             # Database Schema & Data Assets
-│   ├── schema.sql                        # Production MySQL 8.0 DDL Script
-│   ├── seed-data.sql                     # Realistic Seed Data Script
-│   └── README.md                         # MySQL Workbench Configuration Guide
-├── .gitignore
-├── .env.example                          # Root Environment Configuration Template
-└── README.md                             # Comprehensive Project Documentation
+backend/    Spring Boot API   (pom.xml, mvnw, src/main/java, src/main/resources/db/migration, tests)
+frontend/   React app         (src/pages, components, context, services, utils, hooks; vercel.json)
+Dockerfile  builds the jar with the app bundled     render.yaml  Render blueprint
+.github/workflows/ci.yml   tests + lint + build + jar packaging
 ```
 
----
+## Known limitations
 
-## 🎓 College Major Project & Placement Interview Guide
-
-When presenting this project to evaluators or interviewers, highlight these key engineering decisions:
-
-1. **Enterprise Layering**: Clean separation of concerns (Controller -> Service -> Repository -> Entity) ensures scalability and high cohesion.
-2. **Security by Design**: Passwords hashed using **BCrypt** (cost factor 10); API endpoints protected by stateless **JWT (HMAC-SHA256)** tokens; Method-level `@PreAuthorize` security checks prevent privilege escalation.
-3. **Defensive Concurrency**: Double booking is eliminated via database-level serialization and programmatic overlap query checks.
-4. **QR Code Verification Lifecycle**: The QR code contains an opaque, cryptographically random verification token (not sensitive PII) that transitions state from `CONFIRMED` -> `ACTIVE` (at entry scan) -> `COMPLETED` (at exit scan). Duplicate scans are blocked with explicit audit logs.
-5. **Zero-Friction Evaluation**: Includes pre-configured persistent H2 mode with pre-seeded demonstration data, so any evaluator can run the system with zero database setup overhead, while retaining full compatibility with MySQL 8.0.
-
----
-
-## 📄 License
-This project is developed for educational and portfolio demonstration purposes. All rights reserved.
+* Payments are simulated (see above). Overstay fees are recorded, not charged online.
+* Rate limiting and the notification feed are per instance / polling based (30 s), not distributed or push.
+* Administrative lists (`bookings` up to 500, `audit-logs` 200 newest) are capped rather than paginated.
+* The single-instance design assumes one API container; running several would need a shared rate limiter.
