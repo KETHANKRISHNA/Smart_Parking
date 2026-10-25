@@ -11,6 +11,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -59,5 +61,27 @@ class AdminBootstrapRunnerTest {
 
         assertThrows(IllegalStateException.class, () -> runner("boss@example.com", "weak").run());
         verify(users, never()).save(any());
+    }
+
+    @Test
+    void promotesAnExistingCustomerWithTheSameEmailInsteadOfCrashing() {
+        User customer = new User();
+        customer.setEmail("boss@example.com");
+        customer.setName("Original Name");
+        customer.setRole(Role.ROLE_USER);
+        customer.setEnabled(false);
+        customer.setPassword("old-hash");
+        when(users.existsByRole(Role.ROLE_ADMIN)).thenReturn(false);
+        when(users.findByEmail("boss@example.com")).thenReturn(Optional.of(customer));
+
+        runner("Boss@Example.com", "Str0ngPass").run();
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(users).save(saved.capture());
+        assertSame(customer, saved.getValue(), "the existing row is updated, not duplicated");
+        assertEquals(Role.ROLE_ADMIN, customer.getRole());
+        assertTrue(customer.isEnabled());
+        assertEquals("Original Name", customer.getName());
+        assertTrue(encoder.matches("Str0ngPass", customer.getPassword()));
     }
 }

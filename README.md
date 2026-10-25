@@ -69,6 +69,18 @@ The default `dev` profile needs no configuration: it creates a file-based H2 dat
 
 These exist only when demo data is on. They are public knowledge, so never enable demo data on a deployment people rely on.
 
+### Fill a running instance with realistic demo data
+
+[`scripts/seed-demo-data.mjs`](scripts/seed-demo-data.mjs) populates any running SmartPark (local or hosted) through its admin API: 2 extra admins, 7 facility managers, 14 drivers, 13 facilities in Bangalore, Hyderabad, Mumbai and Delhi with photos and 286 bays, and about 19 sample bookings (paid, completed, currently parked, upcoming, cancelled). It needs Node 18+ and an existing admin account, and is safe to run twice (existing items are skipped).
+
+```bash
+node scripts/seed-demo-data.mjs --admin-email you@example.com --admin-password '...'
+node scripts/seed-demo-data.mjs --base https://your-api.onrender.com --admin-email ... --admin-password ...
+# add --no-bookings to skip the sample bookings
+```
+
+The seeded accounts share documented passwords (`Admin@2026`, `Manager@2026`, `User@2026`, with emails like `anita.rao@example.com`), so use it for development and presentations only. Facility photos live in `frontend/public/facilities/` and come from [Unsplash](https://unsplash.com) (free to use under the Unsplash License).
+
 ## Tests
 
 ```bash
