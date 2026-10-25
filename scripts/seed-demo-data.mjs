@@ -73,12 +73,24 @@ const tokens = new Map();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function call(method, path, { token, body, tries = 6 } = {}) {
+  // Network blips (a free-tier host restarting or resetting a connection) are retried for reads and logins.
+  // Creating calls are not retried blindly: the request may have succeeded, and re-running the script
+  // is safe because it skips anything that already exists.
+  const retryable = method === 'GET' || path === '/auth/login';
   for (let attempt = 0; attempt < tries; attempt += 1) {
-    const res = await fetch(`${BASE}/api/v1${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let res;
+    try {
+      res = await fetch(`${BASE}/api/v1${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (err) {
+      if (!retryable || attempt === tries - 1) throw err;
+      console.log(`  (network error, retrying in 5s: ${err.cause?.code || err.message})`);
+      await sleep(5000);
+      continue;
+    }
     if (res.status === 429) {
       const wait = Number(res.headers.get('retry-after') || 20) + 1;
       console.log(`  (rate limited, waiting ${wait}s)`);
@@ -162,9 +174,10 @@ async function seedFacilities(users) {
     if (manager && loc.managerId !== manager.id) {
       loc = await call('POST', `/admin/locations/${loc.id}/assign-manager/${manager.id}`, { token: adminToken });
     }
-    const slots = await call('GET', `/parking/${loc.id}/slots`);
-    if (slots.length === 0) {
-      for (const b of baysFor(f.bays)) {
+    // Add only the bays that are missing, so an interrupted earlier run is completed rather than skipped
+    const have = new Set((await call('GET', `/parking/${loc.id}/slots`)).map((s) => s.slotNumber));
+    {
+      for (const b of baysFor(f.bays).filter((bay) => !have.has(bay.n))) {
         await call('POST', '/admin/slots', {
           token: adminToken,
           body: {
