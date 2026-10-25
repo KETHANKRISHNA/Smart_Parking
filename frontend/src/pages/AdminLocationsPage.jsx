@@ -246,7 +246,7 @@ export const AdminLocationsPage = () => {
               <option value="">{editing?.managerId ? 'Keep current manager' : 'Unassigned'}</option>
               {managers.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}
             </FormField>
-            <FormField label="Image URL (optional)" type="url" name="imageUrl" value={form.imageUrl} onChange={setField} placeholder="https://…" error={fieldErrors.imageUrl} />
+            <FormField label="Photo (optional)" name="imageUrl" value={form.imageUrl} onChange={setField} placeholder="https://… or /facilities/phoenix-mall.jpg" hint="A full image URL, or a path to a photo hosted with the site." error={fieldErrors.imageUrl} />
             <FormField label="Description" as="textarea" rows="3" name="description" value={form.description} onChange={setField} error={fieldErrors.description} />
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
               <input type="checkbox" name="active" checked={form.active} onChange={setField} className="w-4 h-4 rounded text-blue-600" />
