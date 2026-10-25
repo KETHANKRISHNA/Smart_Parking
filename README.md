@@ -149,7 +149,7 @@ Free instances sleep when idle, so the first request after a pause can take abou
 
 ### 2. Front end on Vercel
 
-1. In [`frontend/vercel.json`](frontend/vercel.json) replace `https://smartparking-api.onrender.com` with your Render service URL (it appears once, in the `/api` rewrite).
+1. `frontend/vercel.json` already points its `/api` rewrite at this project's Render service (`smartparking-api-29eo.onrender.com`). If you deploy your own copy, replace that URL (it appears once, in the `/api` rewrite) with your Render service URL.
 2. Vercel → **Add New Project** → import the repository → set **Root Directory** to `frontend`. The framework preset (Vite) is detected from the config.
 3. Deploy. No environment variables are needed: the app calls `/api/...` on its own domain and Vercel forwards it to Render.
 
